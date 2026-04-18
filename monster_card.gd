@@ -2,12 +2,14 @@ extends Button
 signal modifier_changed
 signal instinct_dropped_on_card(source_index: int, slot_index: int, source_type: String)
 signal board_swap_requested(source_index: int, target_index: int)
+signal monster_dropped_on_card(source_index: int, slot_index: int, source_type: String)
 
 @onready var portrait: TextureRect = $PanelContainer/MarginContainer/VBoxContainer/Portrait
 @onready var name_label: Label = $PanelContainer/MarginContainer/VBoxContainer/NameLabel
 @onready var stats_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/StatsLabel
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ModifierLabel
 @onready var slots_label: Label = $PanelContainer/MarginContainer/VBoxContainer/SlotsLabel
+
 
 var _monster_data = null
 var source_type: String = ""
@@ -50,7 +52,10 @@ func _apply_data() -> void:
 	if _monster_data == null:
 		return
 
-	name_label.text = str(_data_get("display_name", "Unknown"))
+	name_label.text = "%s  Lv.%d" % [
+	str(_data_get("display_name", "Unknown")),
+	int(_data_get("level", 1))
+]
 	stats_label.text = "%d / %d" % [
 		int(_data_get("attack", 0)),
 		int(_data_get("health", 0))
@@ -306,11 +311,17 @@ func _can_drop_data(_pos, data) -> bool:
 	var drag_card_type: String = String(data.get("card_type", "monster"))
 	var drag_source_type: String = String(data.get("source_type", ""))
 
+	# Allow instincts onto board monsters
 	if drag_card_type == "instinct":
 		return drag_source_type == "hand" or drag_source_type == "board_instinct"
 
-	if drag_card_type == "monster":
-		return drag_source_type == "board"
+	# Allow hand monsters onto board monsters (for duplicate XP)
+	if drag_card_type == "monster" and drag_source_type == "hand":
+		return true
+
+	# Allow board monster onto another board monster to swap
+	if drag_card_type == "monster" and drag_source_type == "board":
+		return true
 
 	return false
 
@@ -328,11 +339,16 @@ func _drop_data(_pos, data) -> void:
 		instinct_dropped_on_card.emit(drag_source_index, source_index, drag_source_type)
 		return
 
-	if drag_card_type == "monster" and drag_source_type == "board":
-		if drag_source_index == source_index:
+	if drag_card_type == "monster":
+		if drag_source_type == "hand":
+			monster_dropped_on_card.emit(drag_source_index, source_index, drag_source_type)
 			return
-		board_swap_requested.emit(drag_source_index, source_index)
 
+		if drag_source_type == "board":
+			if drag_source_index == source_index:
+				return
+			board_swap_requested.emit(drag_source_index, source_index)
+			return
 func _update_greased_indicator() -> void:
 	if greased_label != null:
 		greased_label.queue_free()

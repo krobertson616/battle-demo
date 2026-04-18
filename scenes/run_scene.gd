@@ -70,6 +70,13 @@ func _apply_pending_combat_result() -> void:
 	if player_won:
 		add_log("[color=green]You win![/color]")
 		GameState.gold += 3
+		for survivor in GameState.pending_result.get("player_survivors", []):
+			var slot_index := int(survivor.get("slot_index", -1))
+			if slot_index >= 0 and slot_index < BOARD_SIZE:
+				var m: MonsterData = GameState.board_monsters[slot_index]
+				if m != null:
+					GameState.grant_monster_xp(m, 1)
+					add_log("%s gained 1 XP." % m.display_name)
 
 		var cleared_encounter_id := GameState.get_current_encounter_id()
 		if cleared_encounter_id == "elite_1":
@@ -208,6 +215,7 @@ func refresh_ui() -> void:
 			card.setup(m, "board", i)
 			card.modifier_changed.connect(refresh_ui)
 			card.instinct_dropped_on_card.connect(_on_instinct_dropped_to_board)
+			card.monster_dropped_on_card.connect(_on_card_dropped_to_board)
 			card.board_swap_requested.connect(_on_board_swap_requested)
 			slot.center_container.add_child(card)
 
@@ -438,13 +446,10 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 	if slot_index >= GameState.max_board_slots:
 		add_log("That slot is locked.")
 		return
-	# From hand → place
+
+	# From hand -> place or feed duplicate XP
 	if source_type == "hand":
 		if source_index < 0 or source_index >= GameState.hand_cards.size():
-			return
-
-		if GameState.board_monsters[slot_index] != null:
-			add_log("That slot is occupied.")
 			return
 
 		var entry = GameState.hand_cards[source_index]
@@ -456,18 +461,42 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 		if m == null:
 			return
 
+		var target: MonsterData = GameState.board_monsters[slot_index]
+		var old_index := -1
+
+		# Feed duplicate instead of placing
+		if target != null and target.id == m.id:
+			GameState.grant_monster_xp(target, 2)
+			add_log("%s consumed for XP!" % m.display_name)
+
+			GameState.hand_cards.remove_at(source_index)
+
+			old_index = GameState.hand_monsters.find(m)
+			if old_index != -1:
+				GameState.hand_monsters.remove_at(old_index)
+
+			refresh_ui()
+			return
+
+		# Occupied by a different monster
+		if target != null:
+			add_log("That slot is occupied.")
+			return
+
+		# Normal placement
 		GameState.hand_cards.remove_at(source_index)
 
-		# Keep old array in sync for now
-		var old_index := GameState.hand_monsters.find(m)
+		old_index = GameState.hand_monsters.find(m)
 		if old_index != -1:
 			GameState.hand_monsters.remove_at(old_index)
 
 		GameState.board_monsters[slot_index] = m
 
-	# From board → swap
+	# From board -> swap
 	elif source_type == "board":
 		if source_index < 0 or source_index >= BOARD_SIZE:
+			return
+		if source_index >= GameState.max_board_slots:
 			return
 
 		var temp = GameState.board_monsters[slot_index]
@@ -476,7 +505,6 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 
 	check_for_evolution()
 	refresh_ui()
-	
 func _on_card_sold_to_shop(source_type: String, source_index: int, dragged_monster: MonsterData = null) -> void:
 	print("SELL TRIGGERED: ", source_type, " ", source_index)
 

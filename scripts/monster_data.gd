@@ -9,9 +9,10 @@ extends Resource
 @export var health: int = 1
 @export var evolves_to_id: String = ""
 @export var max_health: int = 1
-
 @export var modifiers: Array = []
 @export var instincts: Array = []
-
 @export var modifier_slots: int = 0
 @export var equipped_modifiers: Array = []
+
+@export var level: int = 1
+@export var xp: int = 0

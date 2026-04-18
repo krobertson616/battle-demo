@@ -556,3 +556,28 @@ func build_dummy_enemy_team() -> Array:
 	})
 
 	return team
+func get_xp_needed_for_next_level(current_level: int) -> int:
+	match current_level:
+		1:
+			return 2
+		2:
+			return 3
+		_:
+			return 999
+
+func grant_monster_xp(monster: MonsterData, amount: int) -> void:
+	if monster == null:
+		return
+
+	monster.xp += amount
+
+	while monster.level < 3:
+		var needed := get_xp_needed_for_next_level(monster.level)
+		if monster.xp < needed:
+			break
+
+		monster.xp -= needed
+		monster.level += 1
+		monster.attack += 1
+		monster.max_health += 1
+		monster.health += 1
