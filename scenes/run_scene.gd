@@ -32,7 +32,7 @@ func _ready() -> void:
 	_apply_pending_combat_result()
 
 	if not GameState.run_started:
-		GameState.gold = 2
+		GameState.gold = 3
 		GameState.health = 10
 		GameState.round_num = 1
 		GameState.max_board_slots = 3
@@ -88,6 +88,7 @@ func _apply_pending_combat_result() -> void:
 	else:
 		add_log("[color=red]You lose![/color]")
 		GameState.health -= 2
+		GameState.gold += 2
 
 	GameState.round_num += 1
 
@@ -465,9 +466,9 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 		var old_index := -1
 
 		# Feed duplicate instead of placing
-		if target != null and target.id == m.id:
+		if target != null and GameState.can_feed_monster_to_target(m, target):
 			GameState.grant_monster_xp(target, 2)
-			add_log("%s consumed for XP!" % m.display_name)
+			add_log("%s fed into %s for XP!" % [m.display_name, target.display_name])
 
 			GameState.hand_cards.remove_at(source_index)
 
@@ -476,6 +477,11 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 				GameState.hand_monsters.remove_at(old_index)
 
 			refresh_ui()
+			await get_tree().process_frame
+
+			var card_node = _get_board_card_node(slot_index)
+			_show_floating_xp_over_card(card_node, 2)
+
 			return
 
 		# Occupied by a different monster
@@ -704,6 +710,35 @@ func _show_floating_heal_over_card(card: Control, amount: int) -> void:
 	var tween = create_tween()
 	tween.tween_property(label, "position", label.position + Vector2(0, -60), 0.6)
 	tween.parallel().tween_property(label, "modulate", Color(0.2, 1.0, 0.2, 0), 0.6)
+
+	tween.finished.connect(func():
+		label.queue_free()
+	)
+func _show_floating_xp_over_card(card: Control, amount: int) -> void:
+	if card == null:
+		return
+
+	var label := Label.new()
+	label.text = "+%d XP" % amount
+
+	label.add_theme_font_size_override("font_size", 24)
+	label.modulate = Color(0.7, 0.4, 1.0, 1)
+
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 5)
+
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	add_child(label)
+
+	var card_center = card.get_global_position() + (card.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-28, -20)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -50), 0.55)
+	tween.parallel().tween_property(label, "modulate", Color(0.7, 0.4, 1.0, 0), 0.55)
 
 	tween.finished.connect(func():
 		label.queue_free()

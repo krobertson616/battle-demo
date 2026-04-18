@@ -43,14 +43,14 @@ func _build_monster_pools() -> void:
 	enemy_pool.clear()
 
 	all_monsters = [
-		_make("wolf", "Sheni", "Fang", 1, 2, 2, "alpha_wolf"),
-		_make("imp", "Imp", "Ember", 1, 50, 50, "fireling"),
-		_make("slime", "Slime", "Slime", 1, 1, 3, "superslime"),
-		_make("superslime", "Super Slime", "Slime", 1, 1, 3, "none"),
+		_make("wolf", "Sheni", "Fang", 1, 2, 3, "alpha_wolf"),
+		_make("imp", "Imp", "Ember", 1, 3, 2, "fireling"),
+		_make("slime", "Slime", "Slime", 1, 2, 2, "superslime"),
+		_make("superslime", "King Slime", "Slime", 1, 1, 3, "none"),
 		_make("alpha_wolf", "Shen-Zi", "Fang", 3, 3, 3, "none"),
 		_make("fireling", "Fireling", "Ember", 2, 2, 2, "none"),
-		_make("golem", "Pebble Golem", "Stone", 1, 1, 4, "stone_guardian"),
-		_make("stone_guardian", "Stone Guardian", "Stone", 3, 2, 7, "none"),
+		_make("golem", "Pebble", "Stone", 1, 1, 5, "stone_guardian"),
+		_make("stone_guardian", "Guardian", "Stone", 3, 2, 7, "none"),
 	]
 
 	shop_pool = [
@@ -161,6 +161,8 @@ func clone_monster(template: MonsterData) -> MonsterData:
 	m.instincts = template.instincts.duplicate()
 	m.modifier_slots = template.modifier_slots
 	m.equipped_modifiers = template.equipped_modifiers.duplicate()
+	m.level = template.level
+	m.xp = template.xp
 
 	if template.has_meta("texture"):
 		m.set_meta("texture", template.get_meta("texture"))
@@ -478,8 +480,8 @@ func create_enemy(type: String) -> Dictionary:
 			return {
 				"id": "slime",
 				"display_name": "Slime",
-				"attack": 2,
-				"health": 3,
+				"attack": 1,
+				"health": 2,
 				"max_health": 3,
 				"tribe": "Slime",
 				"modifiers": [],
@@ -491,8 +493,8 @@ func create_enemy(type: String) -> Dictionary:
 			return {
 				"id": "bat",
 				"display_name": "Bat",
-				"attack": 3,
-				"health": 2,
+				"attack": 2,
+				"health": 1,
 				"max_health": 2,
 				"tribe": "Beast",
 				"modifiers": [],
@@ -562,6 +564,12 @@ func get_xp_needed_for_next_level(current_level: int) -> int:
 			return 2
 		2:
 			return 3
+		3:
+			return 4
+		4:
+			return 5
+		5:
+			return 6
 		_:
 			return 999
 
@@ -571,7 +579,7 @@ func grant_monster_xp(monster: MonsterData, amount: int) -> void:
 
 	monster.xp += amount
 
-	while monster.level < 3:
+	while monster.level < 6:
 		var needed := get_xp_needed_for_next_level(monster.level)
 		if monster.xp < needed:
 			break
@@ -580,4 +588,62 @@ func grant_monster_xp(monster: MonsterData, amount: int) -> void:
 		monster.level += 1
 		monster.attack += 1
 		monster.max_health += 1
-		monster.health += 1
+		monster.health = min(monster.max_health, monster.health + 1)
+
+		if monster.level == 3 or monster.level == 6:
+			_try_evolve_monster(monster)
+			
+func _try_evolve_monster(monster: MonsterData) -> void:
+	if monster == null:
+		return
+
+	if monster.evolves_to_id == "" or monster.evolves_to_id == "none":
+		return
+
+	var evolved_template := get_monster_by_id(monster.evolves_to_id)
+	if evolved_template == null:
+		return
+
+	var old_attack := monster.attack
+	var old_max_health := monster.max_health
+	var old_health := monster.health
+	var old_xp := monster.xp
+	var old_level := monster.level
+	var old_instincts := monster.instincts.duplicate()
+	var old_equipped := monster.equipped_modifiers.duplicate()
+
+	monster.id = evolved_template.id
+	monster.display_name = evolved_template.display_name
+	monster.tribe = evolved_template.tribe
+	monster.cost = evolved_template.cost
+	monster.evolves_to_id = evolved_template.evolves_to_id
+	monster.modifiers = evolved_template.modifiers.duplicate()
+	monster.modifier_slots = evolved_template.modifier_slots
+
+	# Keep progression and attachments
+	monster.instincts = old_instincts
+	monster.equipped_modifiers = old_equipped
+	monster.level = old_level
+	monster.xp = old_xp
+
+	# Never let evolution feel like a downgrade
+	monster.attack = max(old_attack, evolved_template.attack) + 1
+	monster.max_health = max(old_max_health, evolved_template.max_health) + 1
+	monster.health = max(old_health, monster.max_health)
+
+	if evolved_template.has_meta("texture"):
+		monster.set_meta("texture", evolved_template.get_meta("texture"))
+		
+func can_feed_monster_to_target(feeder: MonsterData, target: MonsterData) -> bool:
+	if feeder == null or target == null:
+		return false
+
+	# Same form can always feed
+	if feeder.id == target.id:
+		return true
+
+	# Lower form can feed directly into its next evolution
+	if feeder.evolves_to_id == target.id:
+		return true
+
+	return false

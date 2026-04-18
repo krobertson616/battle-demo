@@ -2,6 +2,9 @@
 
 [ext_resource type="Script" uid="uid://bfldounv6xn51" path="res://monster_card.gd" id="1_qk6kt"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qk6kt"]
+bg_color = Color(0.4862745, 0.3019608, 1, 1)
+
 [node name="MonsterCard" type="Button" unique_id=1541944165]
 custom_minimum_size = Vector2(150, 200)
 offset_right = 8.0
@@ -33,6 +36,12 @@ layout_mode = 2
 mouse_filter = 2
 expand_mode = 3
 stretch_mode = 6
+
+[node name="ProgressBar" type="ProgressBar" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=922089379]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxFlat_qk6kt")
+show_percentage = false
 
 [node name="NameLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1751544067]
 layout_mode = 2

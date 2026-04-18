@@ -2,14 +2,15 @@ extends Button
 signal modifier_changed
 signal instinct_dropped_on_card(source_index: int, slot_index: int, source_type: String)
 signal board_swap_requested(source_index: int, target_index: int)
-signal monster_dropped_on_card(source_index: int, slot_index: int, source_type: String)
+signal monster_dropped_on_card(source_type: String, source_index: int, slot_index: int)
+
 
 @onready var portrait: TextureRect = $PanelContainer/MarginContainer/VBoxContainer/Portrait
 @onready var name_label: Label = $PanelContainer/MarginContainer/VBoxContainer/NameLabel
 @onready var stats_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/StatsLabel
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ModifierLabel
 @onready var slots_label: Label = $PanelContainer/MarginContainer/VBoxContainer/SlotsLabel
-
+@onready var xp_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/ProgressBar
 
 var _monster_data = null
 var source_type: String = ""
@@ -60,7 +61,27 @@ func _apply_data() -> void:
 		int(_data_get("attack", 0)),
 		int(_data_get("health", 0))
 	]
+	var level := int(_data_get("level", 1))
+	var xp := int(_data_get("xp", 0))
+	var needed := GameState.get_xp_needed_for_next_level(level)
 
+	name_label.text = "%s  Lv.%d" % [
+		str(_data_get("display_name", "Unknown")),
+		level
+	]
+
+	if level >= 6:
+		xp_bar.visible = true
+		xp_bar.min_value = 0
+		xp_bar.max_value = 1
+		xp_bar.value = 1
+		xp_bar.tooltip_text = "Max level"
+	else:
+		xp_bar.visible = true
+		xp_bar.min_value = 0
+		xp_bar.max_value = needed
+		xp_bar.value = xp
+		xp_bar.tooltip_text = "XP %d / %d" % [xp, needed]
 	var tex = _data_get_meta("texture", null)
 	if tex != null:
 		portrait.texture = tex
@@ -341,7 +362,7 @@ func _drop_data(_pos, data) -> void:
 
 	if drag_card_type == "monster":
 		if drag_source_type == "hand":
-			monster_dropped_on_card.emit(drag_source_index, source_index, drag_source_type)
+			monster_dropped_on_card.emit(drag_source_type, drag_source_index, source_index)
 			return
 
 		if drag_source_type == "board":
