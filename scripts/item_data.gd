@@ -10,3 +10,4 @@ extends Resource
 @export	var instinct_type: String = ""
 @export	var instinct_rule: String = ""
 @export	var description: String = ""
+@export var instinct_value: int = 0

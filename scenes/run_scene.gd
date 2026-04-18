@@ -503,18 +503,14 @@ func _apply_combat_damage_to_board() -> void:
 			GameState.return_monster_instincts_to_hand(m)
 			GameState.board_monsters[i] = null
 func _create_item_pool() -> Array:
-	return [
-		_make_item("healing_herb", "Healing Herb", 1, "heal", 3),
-		_make_instinct_item(
-			"hunter_instinct",
-			"Hunter Instinct",
-			1,
-			"targeting",
-			"highest_health",
-			"Attack the highest health enemy"
-		)
+	var pool: Array = [
+		_make_item("healing_herb", "Healing Herb", 1, "heal", 3)
 	]
 
+	for instinct in GameState.get_instinct_shop_pool():
+		pool.append(GameState.instinct_dict_to_item(instinct))
+
+	return pool
 func _make_item(id: String, display_name: String, cost: int, effect_type: String, amount: int) -> ItemData:
 	var item := ItemData.new()
 	item.id = id

@@ -422,6 +422,7 @@ func instinct_dict_to_item(instinct: Dictionary) -> ItemData:
 	item.item_kind = "instinct"
 	item.instinct_type = String(instinct.get("type", ""))
 	item.instinct_rule = String(instinct.get("rule", ""))
+	item.instinct_value = int(instinct.get("value", 0))
 	item.description = String(instinct.get("description", ""))
 	return item
 
