@@ -486,7 +486,8 @@ func create_enemy(type: String) -> Dictionary:
 				"tribe": "Slime",
 				"modifiers": [],
 				"equipped_modifiers": [],
-				"instincts": []
+				"instincts": [],
+				"texture": load("res://assets/caveslime.png")
 			}
 
 		"bat":
@@ -499,7 +500,8 @@ func create_enemy(type: String) -> Dictionary:
 				"tribe": "Beast",
 				"modifiers": [],
 				"equipped_modifiers": [],
-				"instincts": []
+				"instincts": [],
+				"texture": load("res://assets/cavebat.png")
 			}
 
 		"tank":
@@ -512,7 +514,8 @@ func create_enemy(type: String) -> Dictionary:
 				"tribe": "Construct",
 				"modifiers": ["taunt"],
 				"equipped_modifiers": [],
-				"instincts": []
+				"instincts": [],
+				"texture": load("res://assets/rockmonster.png")
 			}
 
 		"boss":
@@ -525,7 +528,8 @@ func create_enemy(type: String) -> Dictionary:
 				"tribe": "Beast",
 				"modifiers": [],
 				"equipped_modifiers": [],
-				"instincts": []
+				"instincts": [],
+				"texture": load("res://assets/cryptlord.png")
 			}
 
 	return {}
