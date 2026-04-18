@@ -281,18 +281,21 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			if burn_hit_enemy and _has_modifier(p_target, "greased"):
 				damage_to_enemy += 1
-
 				if p_target.has("modifiers"):
 					p_target["modifiers"].erase("greased")
-
-				events.append({
-					"type": "status_removed",
-					"target_side": "enemy",
-					"target_name": p_target["name"],
-					"target_index": p_target_index,
-					"status": "greased"
-				})
+					events.append({
+						"type": "status_removed",
+						"target_side": "enemy",
+						"target_name": p_target["name"],
+						"target_index": p_target_index,
+						"status": "greased"
+					})
 				log_lines.append("%s ignites %s for +1 bonus damage" % [p["name"], p_target["name"]])
+
+			var enemy_reduction: int = _get_damage_reduction(p_target)
+			if enemy_reduction > 0:
+				damage_to_enemy = max(1, damage_to_enemy - enemy_reduction)
+				log_lines.append("%s's Thick Hide reduces damage by %d" % [p_target["name"], enemy_reduction])
 
 			p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
 			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
@@ -397,19 +400,21 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			if burn_hit_player and _has_modifier(e_target, "greased"):
 				damage_to_player += 1
-
 				if e_target.has("modifiers"):
 					e_target["modifiers"].erase("greased")
-
-				events.append({
-					"type": "status_removed",
-					"target_side": "player",
-					"target_name": e_target["name"],
-					"target_index": e_target_index,
-					"status": "greased"
-				})
-
+					events.append({
+						"type": "status_removed",
+						"target_side": "player",
+						"target_name": e_target["name"],
+						"target_index": e_target_index,
+						"status": "greased"
+					})
 				log_lines.append("%s ignites %s for +1 bonus damage" % [e["name"], e_target["name"]])
+
+			var player_reduction: int = _get_damage_reduction(e_target)
+			if player_reduction > 0:
+				damage_to_player = max(1, damage_to_player - player_reduction)
+				log_lines.append("%s's Thick Hide reduces damage by %d" % [e_target["name"], player_reduction])
 
 			e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
 			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
@@ -462,3 +467,23 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 		"events": events,
 		"player_survivors": p_units
 	}
+static func _get_instinct_value(unit: Dictionary, instinct_type: String, rule: String, default_value: int = 0) -> int:
+	if not unit.has("instincts"):
+		return default_value
+
+	for instinct in unit["instincts"]:
+		if typeof(instinct) != TYPE_DICTIONARY:
+			continue
+
+		if String(instinct.get("type", "")) == instinct_type and String(instinct.get("rule", "")) == rule:
+			return int(instinct.get("value", default_value))
+
+	return default_value
+
+
+static func _get_damage_reduction(unit: Dictionary) -> int:
+	var reduction := 0
+
+	reduction += _get_instinct_value(unit, "passive", "reduce_damage", 0)
+
+	return reduction

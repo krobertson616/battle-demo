@@ -385,6 +385,16 @@ func get_instinct_shop_pool() -> Array:
 			"type": "targeting",
 			"rule": "front",
 			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "thick_hide",
+			"name": "Thick Hide",
+			"description": "Takes 1 less damage from attacks",
+			"type": "passive",
+			"rule": "reduce_damage",
+			"value": 1,
+			"cost": 1
 		}
 	]
 func add_instinct_to_hand(item: ItemData) -> void:

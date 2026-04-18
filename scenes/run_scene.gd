@@ -32,7 +32,7 @@ func _ready() -> void:
 	_apply_pending_combat_result()
 
 	if not GameState.run_started:
-		GameState.gold = 3
+		GameState.gold = 99
 		GameState.health = 10
 		GameState.round_num = 1
 		GameState.max_board_slots = 3
@@ -259,7 +259,6 @@ func _buy(i: int) -> void:
 	})
 	GameState.shop_monsters.remove_at(i)
 
-	check_for_evolution()
 
 	print("HAND CARDS AFTER MONSTER BUY: ", GameState.hand_cards)
 	add_log("Bought %s." % m.display_name)
@@ -317,94 +316,8 @@ func add_log(t: String) -> void:
 	# Temporary: keep combat logs out of the Output panel
 	pass
 func check_for_evolution() -> void:
-	var counts := {}
-
-	# Count monsters in shared hand
-	for entry in GameState.hand_cards:
-		if String(entry.get("card_type", "")) != "monster":
-			continue
-
-		var m: MonsterData = entry.get("monster")
-		if m == null:
-			continue
-
-		if not counts.has(m.id):
-			counts[m.id] = 0
-		counts[m.id] += 1
-
-	# Count monsters on board
-	for m in GameState.board_monsters:
-		if m == null:
-			continue
-
-		if not counts.has(m.id):
-			counts[m.id] = 0
-		counts[m.id] += 1
-
-	for monster_id in counts.keys():
-		if counts[monster_id] < 3:
-			continue
-
-		var base_monster: MonsterData = GameState.get_monster_by_id(monster_id)
-		if base_monster == null:
-			continue
-
-		if base_monster.evolves_to_id == "" or base_monster.evolves_to_id == "none":
-			continue
-
-		var evolved_template: MonsterData = GameState.get_monster_by_id(base_monster.evolves_to_id)
-		if evolved_template == null:
-			continue
-
-		var evolved_monster: MonsterData = GameState.clone_monster(evolved_template)
-
-		var removed: int = 0
-
-		# Remove matching monsters from shared hand first
-		for i in range(GameState.hand_cards.size() - 1, -1, -1):
-			if removed >= 3:
-				break
-
-			var entry = GameState.hand_cards[i]
-			if String(entry.get("card_type", "")) != "monster":
-				continue
-
-			var m: MonsterData = entry.get("monster")
-			if m != null and m.id == monster_id:
-				GameState.hand_cards.remove_at(i)
-				removed += 1
-
-		# Remove remaining copies from board if needed
-		for i in range(BOARD_SIZE):
-			if removed >= 3:
-				break
-
-			if GameState.board_monsters[i] != null and GameState.board_monsters[i].id == monster_id:
-				GameState.board_monsters[i] = null
-				removed += 1
-
-		# Rebuild legacy hand_monsters from shared hand to keep old code synced
-		GameState.hand_monsters.clear()
-		for entry in GameState.hand_cards:
-			if String(entry.get("card_type", "")) == "monster":
-				var hand_monster: MonsterData = entry.get("monster")
-				if hand_monster != null:
-					GameState.hand_monsters.append(hand_monster)
-
-		# Put evolved unit into shared hand
-		GameState.hand_cards.append({
-			"card_type": "monster",
-			"monster": evolved_monster
-		})
-		GameState.hand_monsters.append(evolved_monster)
-
-		add_log("%s evolved into %s and moved to your hand!" % [
-			base_monster.display_name,
-			evolved_monster.display_name
-		])
-
-		refresh_ui()
-		return
+	# Evolution is XP-only now.
+	return
 func _play_from_hand(i: int) -> void:
 	if i < 0 or i >= GameState.hand_cards.size():
 		return
@@ -438,7 +351,6 @@ func _play_from_hand(i: int) -> void:
 
 	GameState.board_monsters[empty_index] = m
 
-	check_for_evolution()
 	refresh_ui()
 
 func _on_card_dropped_to_board(source_type: String, source_index: int, slot_index: int) -> void:
@@ -509,7 +421,6 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 		GameState.board_monsters[slot_index] = GameState.board_monsters[source_index]
 		GameState.board_monsters[source_index] = temp
 
-	check_for_evolution()
 	refresh_ui()
 func _on_card_sold_to_shop(source_type: String, source_index: int, dragged_monster: MonsterData = null) -> void:
 	print("SELL TRIGGERED: ", source_type, " ", source_index)
