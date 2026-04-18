@@ -196,7 +196,7 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			"health": m.health,
 			"max_health": m.max_health,
 			"tribe": m.tribe,
-			"slot_index": i,
+			"slot_index": m.get_meta("board_slot_index") if m.has_meta("board_slot_index") else i,
 			"id": m.id,
 			"modifiers": m.modifiers.duplicate(),
 			"equipped_modifiers": m.equipped_modifiers.duplicate(),

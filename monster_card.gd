@@ -9,14 +9,11 @@ signal board_swap_requested(source_index: int, target_index: int)
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ModifierLabel
 @onready var slots_label: Label = $PanelContainer/MarginContainer/VBoxContainer/SlotsLabel
 
-
 var _monster_data = null
 var source_type: String = ""
 var source_index: int = -1
 var _pending_slot_index: int = -1
 var greased_label: Label = null
-
-
 
 func setup(monster, p_source_type: String = "", p_source_index: int = -1) -> void:
 	_monster_data = monster
@@ -24,39 +21,69 @@ func setup(monster, p_source_type: String = "", p_source_index: int = -1) -> voi
 	source_index = p_source_index
 	call_deferred("_apply_data")
 
+func _data_get(key: String, default_value = null):
+	if _monster_data == null:
+		return default_value
+
+	if _monster_data is Dictionary:
+		return _monster_data.get(key, default_value)
+
+	return _monster_data.get(key) if _monster_data.get(key) != null else default_value
+
+func _data_has_meta(key: String) -> bool:
+	if _monster_data == null:
+		return false
+	if _monster_data is Dictionary:
+		return _monster_data.has(key)
+	return _monster_data.has_meta(key)
+
+func _data_get_meta(key: String, default_value = null):
+	if _monster_data == null:
+		return default_value
+	if _monster_data is Dictionary:
+		return _monster_data.get(key, default_value)
+	if _monster_data.has_meta(key):
+		return _monster_data.get_meta(key)
+	return default_value
+
 func _apply_data() -> void:
 	if _monster_data == null:
 		return
 
-	name_label.text = _monster_data.display_name
-	stats_label.text = "%d / %d" % [_monster_data.attack, _monster_data.health]
+	name_label.text = str(_data_get("display_name", "Unknown"))
+	stats_label.text = "%d / %d" % [
+		int(_data_get("attack", 0)),
+		int(_data_get("health", 0))
+	]
 
-	if _monster_data.has_meta("texture"):
-		portrait.texture = _monster_data.get_meta("texture")
+	var tex = _data_get_meta("texture", null)
+	if tex != null:
+		portrait.texture = tex
+	else:
+		portrait.texture = null
 
 	_update_modifier_label()
 	_update_slots_label()
-
 	_update_greased_indicator()
+	_update_status_tint()
+
 func _update_status_tint() -> void:
-	print("CARD TINT CHECK:", _monster_data.display_name, " modifiers=", _monster_data.modifiers)
 	if _monster_data == null:
 		self_modulate = Color(1, 1, 1, 1)
 		return
 
 	var has_greased := false
+	var modifiers = _data_get("modifiers", [])
 
-	for mod in _monster_data.modifiers:
+	for mod in modifiers:
 		if String(mod) == "greased":
 			has_greased = true
 			break
 
 	if has_greased:
-		# Warm oily yellow tint
 		self_modulate = Color(1.0, 0.96, 0.78, 1.0)
 	else:
 		self_modulate = Color(1, 1, 1, 1)
-
 
 func _on_modifier_popup_selected(id: int) -> void:
 	if _monster_data == null:
@@ -136,8 +163,10 @@ func _update_modifier_label() -> void:
 		return
 
 	var parts: Array[String] = []
+	var modifiers = _data_get("modifiers", [])
+	var equipped_modifiers = _data_get("equipped_modifiers", [])
 
-	for mod in _monster_data.modifiers:
+	for mod in modifiers:
 		match String(mod):
 			"taunt":
 				parts.append("TAUNT")
@@ -149,11 +178,12 @@ func _update_modifier_label() -> void:
 				parts.append("PACK")
 			"oil":
 				parts.append("OIL")
-			"greased": pass
+			"greased":
+				pass
 			_:
 				parts.append(String(mod).to_upper())
 
-	for mod in _monster_data.equipped_modifiers:
+	for mod in equipped_modifiers:
 		match String(mod):
 			"thorns":
 				parts.append("THORNS")
@@ -175,21 +205,23 @@ func _update_modifier_label() -> void:
 
 	modifier_label.text = " ".join(parts)
 	modifier_label.visible = true
+
 func _dedupe_string_array(items: Array[String]) -> Array[String]:
 	var result: Array[String] = []
 	for item in items:
 		if not result.has(item):
 			result.append(item)
 	return result
+
 func _update_slots_label() -> void:
 	if _monster_data == null:
 		slots_label.text = ""
 		slots_label.visible = false
 		return
 
-	var total: int = int(_monster_data.modifier_slots)
-	var equipped = _monster_data.equipped_modifiers
-	var instincts = _monster_data.instincts
+	var total: int = int(_data_get("modifier_slots", 0))
+	var equipped = _data_get("equipped_modifiers", [])
+	var instincts = _data_get("instincts", [])
 
 	if total <= 0 and equipped.is_empty() and instincts.is_empty():
 		slots_label.text = ""
@@ -264,6 +296,7 @@ func _update_slots_label() -> void:
 
 	slots_label.text = " ".join(parts)
 	slots_label.visible = true
+
 func _can_drop_data(_pos, data) -> bool:
 	if source_type != "board":
 		return false
@@ -273,16 +306,13 @@ func _can_drop_data(_pos, data) -> bool:
 	var drag_card_type: String = String(data.get("card_type", "monster"))
 	var drag_source_type: String = String(data.get("source_type", ""))
 
-	# Allow instincts onto board monsters
 	if drag_card_type == "instinct":
 		return drag_source_type == "hand" or drag_source_type == "board_instinct"
 
-	# Allow board monster onto another board monster to swap
 	if drag_card_type == "monster":
 		return drag_source_type == "board"
 
 	return false
-
 
 func _drop_data(_pos, data) -> void:
 	if source_type != "board":
@@ -302,8 +332,8 @@ func _drop_data(_pos, data) -> void:
 		if drag_source_index == source_index:
 			return
 		board_swap_requested.emit(drag_source_index, source_index)
+
 func _update_greased_indicator() -> void:
-	# Remove old label if it exists
 	if greased_label != null:
 		greased_label.queue_free()
 		greased_label = null
@@ -312,8 +342,9 @@ func _update_greased_indicator() -> void:
 		return
 
 	var has_greased := false
+	var modifiers = _data_get("modifiers", [])
 
-	for mod in _monster_data.modifiers:
+	for mod in modifiers:
 		if String(mod) == "greased":
 			has_greased = true
 			break
@@ -321,20 +352,13 @@ func _update_greased_indicator() -> void:
 	if not has_greased:
 		return
 
-	# Create simple "G" label
 	greased_label = Label.new()
 	greased_label.text = "G"
 	greased_label.z_index = 100
-
-	# Make it readable
 	greased_label.add_theme_font_size_override("font_size", 18)
-	greased_label.modulate = Color(1, 1, 0.2) # yellowish
-
-	# Optional outline (helps a lot visually)
+	greased_label.modulate = Color(1, 1, 0.2)
 	greased_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	greased_label.add_theme_constant_override("outline_size", 4)
-
-	# Position top-left of card
 	greased_label.position = Vector2(4, 2)
 
 	add_child(greased_label)

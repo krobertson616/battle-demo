@@ -23,12 +23,15 @@ var active_node_type: String = ""
 var auto_start_combat_from_map: bool = false
 var run_nodes = []
 var current_node_index: int = 0
+var run_encounters: Array = []
+var current_encounter_index: int = 0
 
 var all_monsters: Array[MonsterData] = []
 var shop_pool: Array[MonsterData] = []
 var enemy_pool: Array[MonsterData] = []
 var selected_location: String = ""
 var selected_location_label: String = ""
+var max_board_slots: int = 3
 
 func _ready() -> void:
 	randomize()
@@ -40,8 +43,8 @@ func _build_monster_pools() -> void:
 	enemy_pool.clear()
 
 	all_monsters = [
-		_make("wolf", "Sheni", "Fang", 2, 2, 2, "alpha_wolf"),
-		_make("imp", "Imp", "Ember", 1, 3, 1, "fireling"),
+		_make("wolf", "Sheni", "Fang", 1, 2, 2, "alpha_wolf"),
+		_make("imp", "Imp", "Ember", 1, 50, 50, "fireling"),
 		_make("slime", "Slime", "Slime", 1, 1, 3, "superslime"),
 		_make("superslime", "Super Slime", "Slime", 1, 1, 3, "none"),
 		_make("alpha_wolf", "Shen-Zi", "Fang", 3, 3, 3, "none"),
@@ -124,7 +127,20 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 		m.set_meta("texture", load("res://assets/slimeking.png"))
 
 	return m
-
+func build_first_test_run() -> void:
+	run_encounters = [
+		"cave_1",
+		"cave_2",
+		"forest_1",
+		"elite_1",
+		"crypt_1",
+		"boss_1",
+	]
+	current_encounter_index = 0
+func get_current_encounter_id() -> String:
+	if current_encounter_index < 0 or current_encounter_index >= run_encounters.size():
+		return ""
+	return String(run_encounters[current_encounter_index])
 func get_monster_by_id(monster_id: String) -> MonsterData:
 	for m in all_monsters:
 		if m.id == monster_id:
@@ -413,3 +429,130 @@ func return_monster_instincts_to_hand(monster: MonsterData) -> void:
 		})
 
 	monster.instincts.clear()
+func build_enemy_team_for_encounter(encounter_id: String) -> Array:
+	match encounter_id:
+
+		"cave_1":
+			return [
+				create_enemy("slime"),
+				create_enemy("slime")
+			]
+
+		"cave_2":
+			return [
+				create_enemy("slime"),
+				create_enemy("bat")
+			]
+
+		"forest_1":
+			return [
+				create_enemy("bat"),
+				create_enemy("bat")
+			]
+
+		"elite_1":
+			return [
+				create_enemy("tank"),
+				create_enemy("bat"),
+				create_enemy("bat")
+			]
+
+		"crypt_1":
+			return [
+				create_enemy("slime"),
+				create_enemy("tank")
+			]
+
+		"boss_1":
+			return [
+				create_enemy("boss")
+			]
+
+		_:
+			return build_dummy_enemy_team()
+
+func create_enemy(type: String) -> Dictionary:
+	match type:
+
+		"slime":
+			return {
+				"id": "slime",
+				"display_name": "Slime",
+				"attack": 2,
+				"health": 3,
+				"max_health": 3,
+				"tribe": "Slime",
+				"modifiers": [],
+				"equipped_modifiers": [],
+				"instincts": []
+			}
+
+		"bat":
+			return {
+				"id": "bat",
+				"display_name": "Bat",
+				"attack": 3,
+				"health": 2,
+				"max_health": 2,
+				"tribe": "Beast",
+				"modifiers": [],
+				"equipped_modifiers": [],
+				"instincts": []
+			}
+
+		"tank":
+			return {
+				"id": "tank",
+				"display_name": "Stone Guard",
+				"attack": 1,
+				"health": 6,
+				"max_health": 6,
+				"tribe": "Construct",
+				"modifiers": ["taunt"],
+				"equipped_modifiers": [],
+				"instincts": []
+			}
+
+		"boss":
+			return {
+				"id": "boss",
+				"display_name": "Cave Brute",
+				"attack": 5,
+				"health": 12,
+				"max_health": 12,
+				"tribe": "Beast",
+				"modifiers": [],
+				"equipped_modifiers": [],
+				"instincts": []
+			}
+
+	return {}
+	
+func build_dummy_enemy_team() -> Array:
+	var team: Array = []
+
+	team.append({
+		"id": "enemy_slime",
+		"display_name": "Enemy Slime",
+		"attack": 2,
+		"health": 3,
+		"max_health": 3,
+		"tribe": "Slime",
+		"modifiers": [],
+		"equipped_modifiers": [],
+		"instincts": []
+	})
+
+	team.append({
+		"id": "enemy_bat",
+		"display_name": "Enemy Bat",
+		"attack": 1,
+		"health": 2,
+		"max_health": 2,
+		"tribe": "Bat",
+		"modifiers": [],
+		"equipped_modifiers": [],
+		"instincts": []
+	})
+
+	return team

@@ -32,14 +32,15 @@ func _ready() -> void:
 	_apply_pending_combat_result()
 
 	if not GameState.run_started:
-		GameState.gold = 100
+		GameState.gold = 2
 		GameState.health = 10
 		GameState.round_num = 1
+		GameState.max_board_slots = 3
 		GameState.board_monsters = [null, null, null, null, null, null]
 		GameState.hand_monsters = []
 		GameState.shop_monsters = []
 		GameState.run_started = true
-		GameState.build_first_run()
+		GameState.build_first_test_run()
 		GameState.map_nodes = GameState.build_test_map()
 		GameState.current_node_id = 0
 		GameState.selected_next_node_id = -1
@@ -58,20 +59,10 @@ func _apply_pending_combat_result() -> void:
 	if GameState.pending_result.is_empty():
 		return
 
+	var combat_log = GameState.pending_result.get("log", [])
+	var player_won: bool = GameState.pending_result.get("player_won", false)
+
 	_apply_combat_damage_to_board()
-	# print("DEBUG pending_result = ", GameState.pending_result)
-
-	var combat_log = GameState.pending_result.get("log", null)
-	var player_won = GameState.pending_result.get("player_won", null)
-
-	if combat_log == null or player_won == null:
-		# print("DEBUG invalid pending_result, clearing it")
-		GameState.clear_selected_location()
-		GameState.selected_next_node_id = -1
-		GameState.pending_result = {}
-		GameState.pending_player_team = []
-		GameState.pending_enemy_team = []
-		return
 
 	for line in combat_log:
 		add_log(str(line))
@@ -79,6 +70,14 @@ func _apply_pending_combat_result() -> void:
 	if player_won:
 		add_log("[color=green]You win![/color]")
 		GameState.gold += 3
+
+		var cleared_encounter_id := GameState.get_current_encounter_id()
+		if cleared_encounter_id == "elite_1":
+			GameState.max_board_slots = 4
+			add_log("[color=yellow]A new board slot unlocked![/color]")
+
+		GameState.current_encounter_index += 1
+		print("Advanced to encounter index: ", GameState.current_encounter_index)
 	else:
 		add_log("[color=red]You lose![/color]")
 		GameState.health -= 2
@@ -92,14 +91,9 @@ func _apply_pending_combat_result() -> void:
 
 	roll_shop()
 
-	# This is what forces the next Start Combat to go back to the map
-	GameState.clear_selected_location()
-	GameState.selected_next_node_id = -1
-
 	GameState.pending_result = {}
 	GameState.pending_player_team = []
 	GameState.pending_enemy_team = []
-
 
 func roll_shop() -> void:
 	GameState.shop_monsters.clear()
@@ -198,7 +192,7 @@ func refresh_ui() -> void:
 
 			hand_row.add_child(card)
 	# Board
-	for i in range(BOARD_SIZE):
+	for i in range(GameState.max_board_slots):
 		var slot = board_slot_scene.instantiate()
 		slot.slot_index = i
 		slot.custom_minimum_size = Vector2(150, 180)
@@ -223,6 +217,8 @@ func _on_board_swap_requested(from_index: int, to_index: int) -> void:
 	if from_index < 0 or from_index >= BOARD_SIZE:
 		return
 	if to_index < 0 or to_index >= BOARD_SIZE:
+		return
+	if from_index >= GameState.max_board_slots or to_index >= GameState.max_board_slots:
 		return
 	if from_index == to_index:
 		return
@@ -286,21 +282,31 @@ func _reroll() -> void:
 	add_log("Shop rerolled.")
 
 func _start_combat() -> void:
+	var encounter_id := GameState.get_current_encounter_id()
+	print("Starting encounter: ", encounter_id)
+
 	var player_team: Array = []
 	for i in range(BOARD_SIZE):
 		var m = GameState.board_monsters[i]
 		if m != null:
+			m.set_meta("board_slot_index", i)
 			player_team.append(m)
-
 	if player_team.is_empty():
 		add_log("Need at least one unit.")
 		return
 
-	get_tree().change_scene_to_file("res://scenes/map_scene.tscn")
+	if encounter_id == "":
+		print("No more encounters. Run complete.")
+		return
+
+	GameState.pending_player_team = player_team
+	GameState.pending_enemy_team = GameState.build_enemy_team_for_encounter(encounter_id)
+	GameState.pending_result = {}
+
+	get_tree().change_scene_to_file("res://scenes/arena_scene.tscn")
 func add_log(t: String) -> void:
 	# Temporary: keep combat logs out of the Output panel
 	pass
-
 func check_for_evolution() -> void:
 	var counts := {}
 
@@ -401,7 +407,7 @@ func _play_from_hand(i: int) -> void:
 
 	var empty_index := -1
 
-	for idx in range(BOARD_SIZE):
+	for idx in range(GameState.max_board_slots):
 		if GameState.board_monsters[idx] == null:
 			empty_index = idx
 			break
@@ -429,7 +435,9 @@ func _play_from_hand(i: int) -> void:
 func _on_card_dropped_to_board(source_type: String, source_index: int, slot_index: int) -> void:
 	if slot_index < 0 or slot_index >= BOARD_SIZE:
 		return
-
+	if slot_index >= GameState.max_board_slots:
+		add_log("That slot is locked.")
+		return
 	# From hand → place
 	if source_type == "hand":
 		if source_index < 0 or source_index >= GameState.hand_cards.size():
@@ -763,3 +771,9 @@ func _on_instinct_dropped_to_board(source_index: int, slot_index: int, source_ty
 			target_monster.display_name
 		])
 		refresh_ui()
+func _get_current_board_count() -> int:
+	var count := 0
+	for m in GameState.board_monsters:
+		if m != null:
+			count += 1
+	return count

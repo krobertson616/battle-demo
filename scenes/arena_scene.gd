@@ -325,27 +325,25 @@ func _on_continue_pressed() -> void:
 func _get_monster_from_entry(entry):
 	if entry == null:
 		return null
-
 	if entry is Dictionary:
 		if entry.has("monster"):
 			return entry["monster"]
-		return null
-
+		return entry
 	return entry
 func _set_background() -> void:
 	var texture: Texture2D
+	var encounter_id := GameState.get_current_encounter_id()
 
-	match GameState.selected_location:
-		"cave":
+	match encounter_id:
+		"cave_1", "cave_2", "elite_1", "boss_1":
 			texture = preload("res://assets/cave.png")
-		"forest":
+		"forest_1":
 			texture = preload("res://assets/forest.png")
-		"crypt":
+		"crypt_1":
 			texture = preload("res://assets/crypt.png")
 		_:
-			texture = preload("res://assets/forest.png") # fallback
+			texture = preload("res://assets/forest.png")
 
-	# Apply depending on node type
 	if background is TextureRect:
 		background.texture = texture
 	elif background is Sprite2D:
