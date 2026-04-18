@@ -44,7 +44,24 @@ func _apply_data() -> void:
 	_update_modifier_label()
 	_update_slots_label()
 	_update_socket_buttons()
+	_update_status_tint()
+func _update_status_tint() -> void:
+	if _monster_data == null:
+		self_modulate = Color(1, 1, 1, 1)
+		return
 
+	var has_greased := false
+
+	for mod in _monster_data.modifiers:
+		if String(mod) == "greased":
+			has_greased = true
+			break
+
+	if has_greased:
+		# Warm oily yellow tint
+		self_modulate = Color(1.0, 0.96, 0.78, 1.0)
+	else:
+		self_modulate = Color(1, 1, 1, 1)
 func _update_socket_buttons() -> void:
 	if _monster_data == null:
 		socket_row.visible = false
@@ -158,7 +175,7 @@ func _notification(what):
 			GameState.sell_strip_ref.disable_drop_zone()
 
 func _update_modifier_label() -> void:
-	if _monster_data == null or _monster_data.modifiers.is_empty():
+	if _monster_data == null:
 		modifier_label.text = ""
 		modifier_label.visible = false
 		return
@@ -168,36 +185,48 @@ func _update_modifier_label() -> void:
 	for mod in _monster_data.modifiers:
 		match String(mod):
 			"taunt":
-				parts.append(" TAUNT")
+				parts.append("TAUNT")
 			"burn":
-				parts.append(" BURN")
+				parts.append("BURN")
 			"regenerate":
-				parts.append(" REGEN")
+				parts.append("REGEN")
 			"pack_hunter":
-				parts.append(" PACK")
+				parts.append("PACK")
 			"oil":
-				parts.append(" OIL")
+				parts.append("OIL")
 			"greased":
-				parts.append(" GREASED")
+				parts.append("GREASED")
 			_:
 				parts.append(String(mod).to_upper())
 
 	for mod in _monster_data.equipped_modifiers:
 		match String(mod):
 			"thorns":
-				parts.append(" THORNS")
+				parts.append("THORNS")
 			"shield":
-				parts.append(" SHIELD")
+				parts.append("SHIELD")
 			"parry":
-				parts.append(" PARRY")
+				parts.append("PARRY")
 			"oil":
-				parts.append(" OIL")
+				parts.append("OIL")
 			_:
 				parts.append(String(mod).to_upper())
 
+	parts = _dedupe_string_array(parts)
+
+	if parts.is_empty():
+		modifier_label.text = ""
+		modifier_label.visible = false
+		return
+
 	modifier_label.text = " ".join(parts)
 	modifier_label.visible = true
-
+func _dedupe_string_array(items: Array[String]) -> Array[String]:
+	var result: Array[String] = []
+	for item in items:
+		if not result.has(item):
+			result.append(item)
+	return result
 func _update_slots_label() -> void:
 	if _monster_data == null:
 		slots_label.text = ""
