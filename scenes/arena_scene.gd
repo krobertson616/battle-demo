@@ -47,12 +47,12 @@ func _ready() -> void:
 	for entry in GameState.pending_enemy_team:
 		var monster = _get_monster_from_entry(entry)
 		if monster != null:
-			visual_enemy_team.append(monster.duplicate())
+			visual_enemy_team.append(monster.duplicate(true))
 
 	for entry in GameState.pending_player_team:
 		var monster = _get_monster_from_entry(entry)
 		if monster != null:
-			visual_player_team.append(monster.duplicate())
+			visual_player_team.append(monster.duplicate(true))
 
 	_render_teams()
 	call_deferred("_run_combat")
