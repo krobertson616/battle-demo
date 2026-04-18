@@ -253,6 +253,7 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 				if p_target.has("modifiers"):
 					p_target["modifiers"].erase("greased")
+
 				events.append({
 					"type": "status_removed",
 					"target_side": "enemy",
@@ -351,6 +352,9 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			if burn_hit_player and _has_modifier(e_target, "greased"):
 				damage_to_player += 1
 
+				if e_target.has("modifiers"):
+					e_target["modifiers"].erase("greased")
+
 				events.append({
 					"type": "status_removed",
 					"target_side": "player",
@@ -360,7 +364,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				})
 
 				log_lines.append("%s ignites %s for +1 bonus damage" % [e["name"], e_target["name"]])
-
 			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
 
 			events.append({

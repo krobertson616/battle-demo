@@ -120,7 +120,45 @@ func _play_combat_events(events: Array) -> void:
 						event.get("target_name", "")
 					]
 				)
+			"status_applied":
+				var target_side: String = str(event.get("target_side", ""))
+				var target_name: String = str(event.get("target_name", ""))
+				var target_index: int = int(event.get("target_index", -1))
+				var status: String = str(event.get("status", ""))
 
+				if status == "greased":
+					combat_log.append_text("%s is greased!\n" % target_name)
+
+					if target_side == "enemy":
+						if target_index >= 0 and target_index < visual_enemy_team.size():
+							if not visual_enemy_team[target_index].modifiers.has("greased"):
+								visual_enemy_team[target_index].modifiers.append("greased")
+					elif target_side == "player":
+						if target_index >= 0 and target_index < visual_player_team.size():
+							if not visual_player_team[target_index].modifiers.has("greased"):
+								visual_player_team[target_index].modifiers.append("greased")
+
+					_render_teams()
+					await get_tree().create_timer(0.12).timeout
+
+			"status_removed":
+				var target_side: String = str(event.get("target_side", ""))
+				var target_name: String = str(event.get("target_name", ""))
+				var target_index: int = int(event.get("target_index", -1))
+				var status: String = str(event.get("status", ""))
+
+				if status == "greased":
+					combat_log.append_text("%s is no longer greased.\n" % target_name)
+
+					if target_side == "enemy":
+						if target_index >= 0 and target_index < visual_enemy_team.size():
+							visual_enemy_team[target_index].modifiers.erase("greased")
+					elif target_side == "player":
+						if target_index >= 0 and target_index < visual_player_team.size():
+							visual_player_team[target_index].modifiers.erase("greased")
+
+					_render_teams()
+					await get_tree().create_timer(0.08).timeout
 				await _animate_attack(
 	str(event.get("attacker_side", "")),
 	int(event.get("attacker_index", 0)),
