@@ -38,7 +38,7 @@ func _build_monster_pools() -> void:
 	enemy_pool.clear()
 
 	all_monsters = [
-		_make("wolf", "Shen", "Fang", 2, 2, 2, "alpha_wolf"),
+		_make("wolf", "Sheni", "Fang", 2, 2, 2, "alpha_wolf"),
 		_make("imp", "Imp", "Ember", 1, 3, 1, "fireling"),
 		_make("slime", "Slime", "Slime", 1, 1, 3, "superslime"),
 		_make("superslime", "Super Slime", "Slime", 1, 1, 3, "none"),
