@@ -46,6 +46,7 @@ func _apply_data() -> void:
 	_update_socket_buttons()
 	_update_status_tint()
 func _update_status_tint() -> void:
+	print("CARD TINT CHECK:", _monster_data.display_name, " modifiers=", _monster_data.modifiers)
 	if _monster_data == null:
 		self_modulate = Color(1, 1, 1, 1)
 		return

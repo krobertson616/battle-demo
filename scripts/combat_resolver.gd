@@ -253,7 +253,13 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 				if p_target.has("modifiers"):
 					p_target["modifiers"].erase("greased")
-
+				events.append({
+					"type": "status_removed",
+					"target_side": "enemy",
+					"target_name": p_target["name"],
+					"target_index": p_target_index,
+					"status": "greased"
+				})
 				log_lines.append("%s ignites %s for +1 bonus damage" % [p["name"], p_target["name"]])
 
 			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
@@ -275,6 +281,14 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 				p_target["modifiers"].append("greased")
 				log_lines.append("%s coats %s in oil" % [p["name"], p_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "enemy",
+					"target_name": p_target["name"],
+					"target_index": p_target_index,
+					"status": "greased"
+				})
 			log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
 
 			events.append({
@@ -337,8 +351,13 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			if burn_hit_player and _has_modifier(e_target, "greased"):
 				damage_to_player += 1
 
-				if e_target.has("modifiers"):
-					e_target["modifiers"].erase("greased")
+				events.append({
+					"type": "status_removed",
+					"target_side": "player",
+					"target_name": e_target["name"],
+					"target_index": e_target_index,
+					"status": "greased"
+				})
 
 				log_lines.append("%s ignites %s for +1 bonus damage" % [e["name"], e_target["name"]])
 
@@ -361,6 +380,14 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 				e_target["modifiers"].append("greased")
 				log_lines.append("%s coats %s in oil" % [e["name"], e_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "player",
+					"target_name": e_target["name"],
+					"target_index": e_target_index,
+					"status": "greased"
+				})
 			log_lines.append("%s takes %d damage" % [e_target["name"], damage_to_player])
 
 			events.append({
