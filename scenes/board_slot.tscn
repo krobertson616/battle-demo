@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cy7aeji6wkpws"]
+
+[ext_resource type="Script" uid="uid://bd8se24ch3pww" path="res://boardslot.gd" id="1_o3fim"]
+
+[node name="Boardslot" type="PanelContainer" unique_id=439709112]
+custom_minimum_size = Vector2(150, 180)
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_o3fim")
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=269739059]
+layout_mode = 2

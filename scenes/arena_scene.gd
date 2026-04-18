@@ -1,0 +1,315 @@
+extends Control
+
+@onready var enemy_row: HBoxContainer = $MarginContainer/VBoxContainer/EnemyRow
+@onready var player_row: HBoxContainer = $MarginContainer/VBoxContainer/PlayerRow
+@onready var result_label: Label = $MarginContainer/VBoxContainer/ResultLabel
+@onready var combat_log: RichTextLabel = $MarginContainer/VBoxContainer/CombatLog
+@onready var continue_button: Button = $MarginContainer/VBoxContainer/ContinueButton
+@onready var background = $BackgroundTexture
+
+var monster_card_scene = preload("res://scenes/monster_card.tscn")
+
+var visual_enemy_team: Array = []
+var visual_player_team: Array = []
+
+const CARD_WIDTH := 150
+const CARD_HEIGHT := 180
+
+const ATTACK_ANIM_TIME := 0.22
+const HIT_ANIM_TIME := 0.18
+const ATTACK_PAUSE := 0.22
+const DAMAGE_PAUSE := 0.22
+const DEATH_PAUSE := 0.45
+
+func _ready() -> void:
+	#print("ARENA selected_location =", GameState.selected_location)
+	#print("ARENA active_node_type =", GameState.active_node_type)
+	_set_background()
+	#print("Entered arena scene")
+	#print("Pending player team size:", GameState.pending_player_team.size())
+	#print("Pending enemy team size:", GameState.pending_enemy_team.size())
+
+	for i in range(GameState.pending_player_team.size()):
+		var monster = _get_monster_from_entry(GameState.pending_player_team[i])
+		if monster != null:
+			print("Player monster ", i, ": ", monster.display_name)
+
+	for i in range(GameState.pending_enemy_team.size()):
+		var monster = _get_monster_from_entry(GameState.pending_enemy_team[i])
+		if monster != null:
+			print("Enemy monster ", i, ": ", monster.display_name)
+	continue_button.pressed.connect(_on_continue_pressed)
+	continue_button.disabled = true
+
+	visual_enemy_team.clear()
+	visual_player_team.clear()
+
+	for entry in GameState.pending_enemy_team:
+		var monster = _get_monster_from_entry(entry)
+		if monster != null:
+			visual_enemy_team.append(monster.duplicate())
+
+	for entry in GameState.pending_player_team:
+		var monster = _get_monster_from_entry(entry)
+		if monster != null:
+			visual_player_team.append(monster.duplicate())
+
+	_render_teams()
+	call_deferred("_run_combat")
+
+func _render_teams() -> void:
+	for c in enemy_row.get_children():
+		c.queue_free()
+
+	for c in player_row.get_children():
+		c.queue_free()
+
+	for monster in visual_enemy_team:
+		var holder := Control.new()
+		holder.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+
+		var card = monster_card_scene.instantiate()
+		card.setup(monster)
+		card.disabled = true
+		card.position = Vector2.ZERO
+
+		holder.add_child(card)
+		enemy_row.add_child(holder)
+
+	for monster in visual_player_team:
+		var holder := Control.new()
+		holder.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+
+		var card = monster_card_scene.instantiate()
+		card.setup(monster)
+		card.disabled = true
+		card.position = Vector2.ZERO
+
+		holder.add_child(card)
+		player_row.add_child(holder)
+
+func _run_combat() -> void:
+	GameState.pending_result = CombatResolver.resolve_combat(
+		GameState.pending_player_team,
+		GameState.pending_enemy_team
+	)
+
+	#print("DEBUG arena result = ", GameState.pending_result)
+
+	combat_log.clear()
+	result_label.text = ""
+
+	await _play_combat_events(GameState.pending_result.get("events", []))
+
+	if GameState.pending_result.get("player_won", false):
+		result_label.text = "Victory!"
+	else:
+		result_label.text = "Defeat!"
+
+	continue_button.disabled = false
+
+func _play_combat_events(events: Array) -> void:
+	for event in events:
+		var event_type: String = str(event.get("type", ""))
+
+		match event_type:
+			"attack":
+				combat_log.append_text(
+					"%s attacks %s\n" % [
+						event.get("attacker_name", ""),
+						event.get("target_name", "")
+					]
+				)
+
+				await _animate_attack(
+	str(event.get("attacker_side", "")),
+	int(event.get("attacker_index", 0)),
+	str(event.get("target_side", "")),
+	int(event.get("target_index", 0))
+)
+				await get_tree().create_timer(ATTACK_PAUSE).timeout
+
+			"damage":
+				var target_side: String = str(event.get("target_side", ""))
+				var target_name: String = str(event.get("target_name", ""))
+				var target_index: int = int(event.get("target_index", 0))
+				var remaining_hp: int = int(event.get("remaining_hp", 0))
+				var damage_amount: int = int(event.get("amount", 0))
+
+				if target_side == "enemy":
+					for monster in visual_enemy_team:
+						if monster.display_name == target_name:
+							monster.health = remaining_hp
+							break
+				elif target_side == "player":
+					for monster in visual_player_team:
+						if monster.display_name == target_name:
+							monster.health = remaining_hp
+							break
+
+				_render_teams()
+
+				combat_log.append_text(
+					"%s takes %d damage (%d HP left)\n" % [
+						target_name,
+						damage_amount,
+						remaining_hp
+					]
+				)
+
+				_show_floating_damage(target_side, target_index, damage_amount)
+				await _animate_hit(target_side, target_index)
+				await get_tree().create_timer(DAMAGE_PAUSE).timeout
+
+			"death":
+				var dead_side: String = str(event.get("side", ""))
+				var dead_name: String = str(event.get("name", ""))
+
+				var dead_index: int = int(event.get("target_index", 0))
+				await _animate_death(dead_side, dead_index)
+
+				if dead_side == "enemy":
+					for i in range(visual_enemy_team.size()):
+						if visual_enemy_team[i].display_name == dead_name:
+							visual_enemy_team.remove_at(i)
+							break
+				elif dead_side == "player":
+					for i in range(visual_player_team.size()):
+						if visual_player_team[i].display_name == dead_name:
+							visual_player_team.remove_at(i)
+							break
+
+				_render_teams()
+
+				combat_log.append_text("%s dies!\n" % dead_name)
+				await get_tree().create_timer(DEATH_PAUSE).timeout
+
+func _get_card_node(side: String, index: int) -> Control:
+	var row: HBoxContainer = player_row if side == "player" else enemy_row
+
+	if index < 0 or index >= row.get_child_count():
+		return null
+
+	var holder = row.get_child(index)
+	if holder == null or holder.get_child_count() == 0:
+		return null
+
+	return holder.get_child(0)
+
+func _animate_attack(attacker_side: String, attacker_index: int, target_side: String, target_index: int) -> void:
+	var attacker = _get_card_node(attacker_side, attacker_index)
+	var target = _get_card_node(target_side, target_index)
+
+	if attacker == null:
+		return
+
+	var original_pos: Vector2 = attacker.position
+	var original_scale: Vector2 = attacker.scale
+	var attack_pos: Vector2 = original_pos
+
+	if target != null:
+		var attacker_center = attacker.get_global_position() + (attacker.size / 2.0)
+		var target_center = target.get_global_position() + (target.size / 2.0)
+
+		var direction = (target_center - attacker_center).normalized()
+		attack_pos = original_pos + direction * 50.0
+
+	var tween = create_tween()
+	tween.tween_property(attacker, "position", attack_pos, ATTACK_ANIM_TIME)
+	tween.parallel().tween_property(attacker, "scale", Vector2(1.05, 1.05), ATTACK_ANIM_TIME)
+	tween.tween_property(attacker, "position", original_pos, ATTACK_ANIM_TIME)
+	tween.parallel().tween_property(attacker, "scale", original_scale, ATTACK_ANIM_TIME)
+
+	await tween.finished
+func _animate_hit(side: String, index: int) -> void:
+	var card = _get_card_node(side, index)
+	if card == null:
+		return
+
+	var original_pos: Vector2 = card.position
+	var original_modulate: Color = card.modulate
+
+	var offset := Vector2(-12, 0)
+	if side == "enemy":
+		offset = Vector2(12, 0)
+
+	var tween = create_tween()
+	tween.tween_property(card, "position", original_pos + offset, HIT_ANIM_TIME)
+	tween.parallel().tween_property(card, "modulate", Color(1, 0.25, 0.25), HIT_ANIM_TIME)
+	tween.tween_property(card, "position", original_pos, HIT_ANIM_TIME)
+	tween.parallel().tween_property(card, "modulate", original_modulate, HIT_ANIM_TIME)
+
+	await tween.finished
+	
+func _show_floating_damage(side: String, index: int, amount: int) -> void:
+	var card = _get_card_node(side, index)
+	if card == null:
+		return
+
+	var label := Label.new()
+	label.text = "-%d" % amount
+	label.add_theme_font_size_override("font_size", 32)
+	label.modulate = Color(1, 0.1, 0.1, 1)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 6)
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	add_child(label)
+
+	var card_center = card.get_global_position() + (card.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-20, -40)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -60), 0.6)
+	tween.parallel().tween_property(label, "scale", Vector2(1.2, 1.2), 0.2)
+	tween.tween_property(label, "scale", Vector2(1, 1), 0.2)
+	tween.parallel().tween_property(label, "modulate", Color(1, 0.1, 0.1, 0), 0.6)
+
+	tween.finished.connect(func():
+		label.queue_free()
+	)
+func _animate_death(side: String, index: int) -> void:
+	var card = _get_card_node(side, index)
+	if card == null:
+		return
+
+	var tween = create_tween()
+	tween.tween_property(card, "modulate", Color(1, 0, 0, 1), 0.12)
+	tween.tween_property(card, "modulate", Color(1, 0, 0, 0), 0.25)
+
+	await tween.finished
+func _on_continue_pressed() -> void:
+	#print("Continue pressed")
+
+	get_tree().change_scene_to_file("res://scenes/run_scene.tscn")
+	
+func _get_monster_from_entry(entry):
+	if entry == null:
+		return null
+
+	if entry is Dictionary:
+		if entry.has("monster"):
+			return entry["monster"]
+		return null
+
+	return entry
+func _set_background() -> void:
+	var texture: Texture2D
+
+	match GameState.selected_location:
+		"cave":
+			texture = preload("res://assets/cave.png")
+		"forest":
+			texture = preload("res://assets/forest.png")
+		"crypt":
+			texture = preload("res://assets/crypt.png")
+		_:
+			texture = preload("res://assets/forest.png") # fallback
+
+	# Apply depending on node type
+	if background is TextureRect:
+		background.texture = texture
+	elif background is Sprite2D:
+		background.texture = texture

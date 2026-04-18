@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://dfyeodnohkncd"]
+
+[ext_resource type="Script" uid="uid://cpt0qr2lvrvn1" path="res://scripts/instinct_card.gd" id="1_ki8i7"]
+
+[node name="InstinctCard" type="Button" unique_id=1336697078]
+custom_minimum_size = Vector2(150, 180)
+offset_right = 8.0
+offset_bottom = 8.0
+flat = true
+script = ExtResource("1_ki8i7")

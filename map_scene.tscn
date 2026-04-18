@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://bbqiuvvemwlh4"]
+
+[ext_resource type="Script" uid="uid://cnululiayub4r" path="res://map_scene.gd" id="1_iuamg"]
+
+[node name="map_scene" type="Control" unique_id=1535020262]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_iuamg")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=1434715370]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="TitleLabel" type="Label" parent="." unique_id=529939321]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="NodeLayer" type="Control" parent="." unique_id=941662605]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Backbutton" type="Button" parent="." unique_id=763691528]
+layout_mode = 0
+offset_right = 8.0
+offset_bottom = 8.0

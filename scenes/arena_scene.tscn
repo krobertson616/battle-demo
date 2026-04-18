@@ -1,0 +1,84 @@
+[gd_scene format=3 uid="uid://07y7kpfxcwto"]
+
+[ext_resource type="Script" uid="uid://dvgrxxqwig57x" path="res://scenes/arena_scene.gd" id="1_r8trg"]
+
+[node name="ArenaScene" type="Control" unique_id=422312403]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_r8trg")
+
+[node name="BackgroundTexture" type="TextureRect" parent="." unique_id=1470291607]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=158415178]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 40
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=240099824]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1097033572]
+layout_mode = 2
+text = "Arena"
+horizontal_alignment = 1
+
+[node name="Control2" type="Control" parent="MarginContainer/VBoxContainer" unique_id=1280551812]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="EnemyLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=2085006750]
+layout_mode = 2
+text = "Enemy Team"
+horizontal_alignment = 1
+
+[node name="EnemyRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1242207349]
+custom_minimum_size = Vector2(180, 140)
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="Control" type="Control" parent="MarginContainer/VBoxContainer" unique_id=831085147]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+
+[node name="PlayerLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1520506958]
+layout_mode = 2
+text = "Your Team"
+horizontal_alignment = 1
+
+[node name="PlayerRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=67010124]
+custom_minimum_size = Vector2(180, 140)
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="ResultLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1089270889]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="CombatLog" type="RichTextLabel" parent="MarginContainer/VBoxContainer" unique_id=1816832132]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+
+[node name="ContinueButton" type="Button" parent="MarginContainer/VBoxContainer" unique_id=799208243]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_stretch_ratio = 0.96
+text = "Continue"

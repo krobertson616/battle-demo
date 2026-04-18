@@ -1,0 +1,86 @@
+[gd_scene format=3 uid="uid://c1uxb5goe78vo"]
+
+[ext_resource type="Script" uid="uid://dw0fcolkcw7wr" path="res://scenes/run_scene.gd" id="1_5p55f"]
+[ext_resource type="Script" uid="uid://l48crwf50qd2" path="res://scenes/sellstrip.gd" id="2_brbbq"]
+[ext_resource type="Script" uid="uid://xkph3le33qgo" path="res://scenes/shop_row_drop_target.gd" id="2_r67kn"]
+
+[node name="Control" type="Control" unique_id=1337837687]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_5p55f")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=982953996]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1240324692]
+layout_mode = 2
+
+[node name="TopBarLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1155403516]
+layout_mode = 2
+text = "Round 1   Gold: 3   Health: 10"
+
+[node name="ShopSection" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=685987032]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ShopLabel" type="Label" parent="MarginContainer/VBoxContainer/ShopSection" unique_id=568218347]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+text = "Shop"
+horizontal_alignment = 1
+
+[node name="ShopRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/ShopSection" unique_id=1386661458]
+layout_mode = 2
+mouse_filter = 2
+alignment = 1
+script = ExtResource("2_r67kn")
+
+[node name="RerollButton" type="Button" parent="MarginContainer/VBoxContainer/ShopSection" unique_id=922490557]
+custom_minimum_size = Vector2(140, 36)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Reroll"
+
+[node name="BoardLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1099000111]
+layout_mode = 2
+text = "Board"
+horizontal_alignment = 1
+
+[node name="BoardRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=836017297]
+layout_mode = 2
+alignment = 1
+
+[node name="StartCombatButton" type="Button" parent="MarginContainer/VBoxContainer" unique_id=1676324785]
+custom_minimum_size = Vector2(140, 36)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 5
+text = "Start Combat"
+
+[node name="Hand Label" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1595802317]
+layout_mode = 2
+
+[node name="HandRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=208948201]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+
+[node name="SellStrip" type="PanelContainer" parent="." unique_id=1310951443]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 427.0
+offset_right = 1080.0
+offset_bottom = 427.0
+script = ExtResource("2_brbbq")

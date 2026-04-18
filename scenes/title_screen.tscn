@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://c7smix02y8o3d"]
+
+[ext_resource type="Script" uid="uid://1vuy2lt1mx52" path="res://title_screen.gd" id="1_sa3yf"]
+[ext_resource type="Texture2D" uid="uid://cdqy4ypaog5na" path="res://assets/start.png" id="2_s4lrb"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_sa3yf"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_s4lrb"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_mgrm8"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_dc4i4"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_e54dn"]
+
+[node name="TitleScreen" type="Control" unique_id=1009038286]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sa3yf")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=1088687853]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -65.75
+offset_top = 2.0
+offset_right = 68.75
+offset_bottom = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_s4lrb")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="PlayButton" type="Button" parent="." unique_id=898548457]
+layout_mode = 0
+offset_left = 371.0
+offset_top = 542.0
+offset_right = 733.0
+offset_bottom = 631.0
+mouse_default_cursor_shape = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_sa3yf")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_s4lrb")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_mgrm8")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_dc4i4")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_e54dn")
