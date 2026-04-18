@@ -135,7 +135,20 @@ func _play_combat_events(events: Array) -> void:
 				var target_index: int = int(event.get("target_index", -1))
 				var status: String = str(event.get("status", ""))
 
-				if status == "greased":
+				if status == "greased" or status == "burning":
+					combat_log.append_text("%s is %s!\n" % [target_name, status])
+
+					if target_side == "enemy":
+						if target_index >= 0 and target_index < visual_enemy_team.size():
+							if not visual_enemy_team[target_index].modifiers.has(status):
+								visual_enemy_team[target_index].modifiers.append(status)
+					elif target_side == "player":
+						if target_index >= 0 and target_index < visual_player_team.size():
+							if not visual_player_team[target_index].modifiers.has(status):
+								visual_player_team[target_index].modifiers.append(status)
+
+					_render_teams()
+					await get_tree().create_timer(0.12).timeout
 					combat_log.append_text("%s is greased!\n" % target_name)
 
 					if target_side == "enemy":
@@ -156,7 +169,7 @@ func _play_combat_events(events: Array) -> void:
 				var target_index: int = int(event.get("target_index", -1))
 				var status: String = str(event.get("status", ""))
 
-				if status == "greased":
+				if status == "greased" or status == "burning":
 					combat_log.append_text("%s is no longer greased.\n" % target_name)
 
 					if target_side == "enemy":
@@ -176,12 +189,39 @@ func _play_combat_events(events: Array) -> void:
 					combat_log.append_text("%s dodges the attack!\n" % target_name)
 					_show_floating_miss(target_side, target_index)
 					await get_tree().create_timer(0.18).timeout
+			"dot_damage":
+				var target_side: String = str(event.get("target_side", ""))
+				var target_name: String = str(event.get("target_name", ""))
+				var target_index: int = int(event.get("target_index", 0))
+				var remaining_hp: int = int(event.get("remaining_hp", 0))
+				var damage_amount: int = int(event.get("amount", 0))
+				var source: String = str(event.get("source", ""))
+
+				combat_log.append_text(
+					"%s takes %d %s damage (%d HP left)\n" % [
+						target_name, damage_amount, source, remaining_hp
+					]
+				)
+
+				_show_floating_damage(target_side, target_index, damage_amount)
+
+				if target_side == "enemy":
+					if target_index >= 0 and target_index < visual_enemy_team.size():
+						visual_enemy_team[target_index].health = remaining_hp
+				elif target_side == "player":
+					if target_index >= 0 and target_index < visual_player_team.size():
+						visual_player_team[target_index].health = remaining_hp
+
+				_render_teams()
+				await get_tree().create_timer(DAMAGE_PAUSE).timeout
 			"damage":
 				var target_side: String = str(event.get("target_side", ""))
 				var target_name: String = str(event.get("target_name", ""))
 				var target_index: int = int(event.get("target_index", 0))
 				var remaining_hp: int = int(event.get("remaining_hp", 0))
 				var damage_amount: int = int(event.get("amount", 0))
+				var soaked: bool = bool(event.get("soaked", false))
+				var reduced_by: int = int(event.get("reduced_by", 0))
 
 				combat_log.append_text(
 					"%s takes %d damage (%d HP left)\n" % [
@@ -189,6 +229,8 @@ func _play_combat_events(events: Array) -> void:
 					]
 				)
 				_show_floating_damage(target_side, target_index, damage_amount)
+				if soaked:
+					_show_floating_soak(target_side, target_index, reduced_by)
 				await _animate_hit(target_side, target_index)
 
 				if target_side == "enemy":
@@ -371,3 +413,41 @@ func _show_floating_miss(side: String, index: int) -> void:
 	tween.tween_property(label, "position", label.position + Vector2(0, -40), 0.5)
 	tween.parallel().tween_property(label, "modulate", Color(1, 1, 1, 0), 0.5)
 	tween.finished.connect(func(): label.queue_free())
+func _flash_soak(side: String, index: int) -> void:
+	var card = _get_card_node(side, index)
+	if card == null:
+		return
+
+	var original_modulate: Color = card.modulate
+
+	var tween = create_tween()
+	tween.tween_property(card, "modulate", Color(0.7, 0.9, 1.0, 1.0), 0.08)
+	tween.tween_property(card, "modulate", original_modulate, 0.12)
+
+	await tween.finished
+
+
+func _show_floating_soak(side: String, index: int, amount: int) -> void:
+	var holder = _get_holder_node(side, index)
+	if holder == null:
+		return
+
+	var label := Label.new()
+	label.text = "BLOCK -%d" % amount
+	label.add_theme_font_size_override("font_size", 22)
+	label.modulate = Color(0.75, 0.9, 1.0, 1.0)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 5)
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(label)
+
+	var card_center = holder.get_global_position() + (holder.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-45, -65)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -35), 0.45)
+	tween.parallel().tween_property(label, "modulate", Color(0.75, 0.9, 1.0, 0), 0.45)
+	await tween.finished
+	label.queue_free()

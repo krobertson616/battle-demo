@@ -49,7 +49,26 @@ static func _has_modifier(unit: Dictionary, modifier_id: String) -> bool:
 			return true
 
 	return false
+static func _get_instinct_value(unit: Dictionary, instinct_type: String, rule: String, default_value: int = 0) -> int:
+	if not unit.has("instincts"):
+		return default_value
 
+	for instinct in unit["instincts"]:
+		if typeof(instinct) != TYPE_DICTIONARY:
+			continue
+
+		if String(instinct.get("type", "")) == instinct_type and String(instinct.get("rule", "")) == rule:
+			return int(instinct.get("value", default_value))
+
+	return default_value
+
+
+static func _get_damage_reduction(unit: Dictionary) -> int:
+	var reduction := 0
+
+	reduction += _get_instinct_value(unit, "passive", "reduce_damage", 0)
+
+	return reduction
 
 static func _get_living_indices_with_modifier(units: Array, modifier_id: String) -> Array:
 	var valid: Array = []
@@ -238,7 +257,35 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				p["health"] = min(int(p["max_health"]), int(p["health"]) + 1)
 				if int(p["health"]) > old_hp:
 					log_lines.append("%s regenerates 1 health" % p["name"])
+			if _has_modifier(p, "burning"):
+				p["health"] = max(0, int(p["health"]) - 1)
+				log_lines.append("%s takes 1 burn damage" % p["name"])
 
+				events.append({
+					"type": "dot_damage",
+					"target_side": "player",
+					"target_name": p["name"],
+					"target_index": p_attacker_index,
+					"amount": 1,
+					"remaining_hp": p["health"],
+					"source": "burn"
+				})
+
+				if int(p["health"]) <= 0:
+					log_lines.append("%s burns to death" % p["name"])
+					events.append({
+						"type": "death",
+						"side": "player",
+						"name": p["name"],
+						"target_index": p_attacker_index
+					})
+					p_units.remove_at(p_attacker_index)
+
+					if p_units.is_empty():
+						break
+
+					player_turn = false
+					continue
 			var p_target: Dictionary = e_units[p_target_index]
 			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
 			events.append({
@@ -269,35 +316,32 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				player_turn = false
 				continue
 			var damage_to_enemy: int = int(p["attack"])
-			var burn_hit_enemy := false
-			
 
-			if _has_modifier(p, "burn"):
-				damage_to_enemy += 1
-				burn_hit_enemy = true
-
-			if _has_modifier(p, "pack_hunter") and _has_other_living_tribe_ally(p_units, p_attacker_index, "Fang"):
-				damage_to_enemy += 1
-
-			if burn_hit_enemy and _has_modifier(p_target, "greased"):
-				damage_to_enemy += 1
-				if p_target.has("modifiers"):
-					p_target["modifiers"].erase("greased")
-					events.append({
-						"type": "status_removed",
-						"target_side": "enemy",
-						"target_name": p_target["name"],
-						"target_index": p_target_index,
-						"status": "greased"
-					})
-				log_lines.append("%s ignites %s for +1 bonus damage" % [p["name"], p_target["name"]])
-
+			var original_damage_to_enemy: int = damage_to_enemy
 			var enemy_reduction: int = _get_damage_reduction(p_target)
-			if enemy_reduction > 0:
-				damage_to_enemy = max(1, damage_to_enemy - enemy_reduction)
-				log_lines.append("%s's Thick Hide reduces damage by %d" % [p_target["name"], enemy_reduction])
 
+			damage_to_enemy = max(1, damage_to_enemy - enemy_reduction)
+
+			var enemy_blocked: int = original_damage_to_enemy - damage_to_enemy
+			var enemy_soaked := enemy_blocked > 0
+
+			if enemy_soaked:
+				log_lines.append("%s's Thick Hide reduces damage by %d" % [p_target["name"], enemy_blocked])
 			p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
+			if _has_modifier(p, "burn") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "burning"):
+				if not p_target.has("modifiers"):
+					p_target["modifiers"] = []
+
+				p_target["modifiers"].append("burning")
+				log_lines.append("%s sets %s on fire" % [p["name"], p_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "enemy",
+					"target_name": p_target["name"],
+					"target_index": p_target_index,
+					"status": "burning"
+	})
 			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
 				if not p_target.has("modifiers"):
 					p_target["modifiers"] = []
@@ -315,13 +359,15 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
 
 			events.append({
-				"type": "damage",
-				"target_side": "enemy",
-				"target_name": p_target["name"],
-				"target_index": p_target_index,
-				"amount": damage_to_enemy,
-				"remaining_hp": p_target["health"]
-			})
+	"type": "damage",
+	"target_side": "enemy",
+	"target_name": p_target["name"],
+	"target_index": p_target_index,
+	"amount": damage_to_enemy,
+	"remaining_hp": p_target["health"],
+	"soaked": enemy_soaked,
+	"reduced_by": enemy_blocked
+})
 
 			for i in range(e_units.size() - 1, -1, -1):
 				if int(e_units[i]["health"]) <= 0:
@@ -358,7 +404,35 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				e["health"] = min(int(e["max_health"]), int(e["health"]) + 1)
 				if int(e["health"]) > old_hp:
 					log_lines.append("%s regenerates 1 health" % e["name"])
+			if _has_modifier(e, "burning"):
+				e["health"] = max(0, int(e["health"]) - 1)
+				log_lines.append("%s takes 1 burn damage" % e["name"])
 
+				events.append({
+					"type": "dot_damage",
+					"target_side": "enemy",
+					"target_name": e["name"],
+					"target_index": e_attacker_index,
+					"amount": 1,
+					"remaining_hp": e["health"],
+					"source": "burn"
+				})
+
+				if int(e["health"]) <= 0:
+					log_lines.append("%s burns to death" % e["name"])
+					events.append({
+						"type": "death",
+						"side": "enemy",
+						"name": e["name"],
+						"target_index": e_attacker_index
+					})
+					e_units.remove_at(e_attacker_index)
+
+					if e_units.is_empty():
+						break
+
+					player_turn = true
+					continue
 			var e_target: Dictionary = p_units[e_target_index]
 			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
 			events.append({
@@ -389,34 +463,32 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				player_turn = true
 				continue
 			var damage_to_player: int = int(e["attack"])
-			var burn_hit_player := false
 
-			if _has_modifier(e, "pack_hunter") and _has_other_living_tribe_ally(e_units, e_attacker_index, "Fang"):
-				damage_to_player += 1
+			var original_damage_to_player: int = damage_to_player
+			var player_reduction: int = _get_damage_reduction(e_target)
 
-			if _has_modifier(e, "burn"):
-				damage_to_player += 1
-				burn_hit_player = true
+			damage_to_player = max(1, damage_to_player - player_reduction)
 
-			if burn_hit_player and _has_modifier(e_target, "greased"):
-				damage_to_player += 1
-				if e_target.has("modifiers"):
-					e_target["modifiers"].erase("greased")
+			var player_blocked: int = original_damage_to_player - damage_to_player
+			var player_soaked := player_blocked > 0
+
+			if player_soaked:
+				log_lines.append("%s's Thick Hide reduces damage by %d" % [e_target["name"], player_blocked])
+				e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
+				if _has_modifier(e, "burn") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "burning"):
+					if not e_target.has("modifiers"):
+						e_target["modifiers"] = []
+
+					e_target["modifiers"].append("burning")
+					log_lines.append("%s sets %s on fire" % [e["name"], e_target["name"]])
+
 					events.append({
-						"type": "status_removed",
+						"type": "status_applied",
 						"target_side": "player",
 						"target_name": e_target["name"],
 						"target_index": e_target_index,
-						"status": "greased"
+						"status": "burning"
 					})
-				log_lines.append("%s ignites %s for +1 bonus damage" % [e["name"], e_target["name"]])
-
-			var player_reduction: int = _get_damage_reduction(e_target)
-			if player_reduction > 0:
-				damage_to_player = max(1, damage_to_player - player_reduction)
-				log_lines.append("%s's Thick Hide reduces damage by %d" % [e_target["name"], player_reduction])
-
-			e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
 			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
 				if not e_target.has("modifiers"):
 					e_target["modifiers"] = []
@@ -439,7 +511,9 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				"target_name": e_target["name"],
 				"target_index": e_target_index,
 				"amount": damage_to_player,
-				"remaining_hp": e_target["health"]
+				"remaining_hp": e_target["health"],
+				"soaked": player_soaked,
+				"reduced_by": player_blocked
 			})
 
 			for i in range(p_units.size() - 1, -1, -1):
@@ -467,23 +541,3 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 		"events": events,
 		"player_survivors": p_units
 	}
-static func _get_instinct_value(unit: Dictionary, instinct_type: String, rule: String, default_value: int = 0) -> int:
-	if not unit.has("instincts"):
-		return default_value
-
-	for instinct in unit["instincts"]:
-		if typeof(instinct) != TYPE_DICTIONARY:
-			continue
-
-		if String(instinct.get("type", "")) == instinct_type and String(instinct.get("rule", "")) == rule:
-			return int(instinct.get("value", default_value))
-
-	return default_value
-
-
-static func _get_damage_reduction(unit: Dictionary) -> int:
-	var reduction := 0
-
-	reduction += _get_instinct_value(unit, "passive", "reduce_damage", 0)
-
-	return reduction

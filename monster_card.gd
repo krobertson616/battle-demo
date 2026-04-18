@@ -198,6 +198,8 @@ func _update_modifier_label() -> void:
 				parts.append("TAUNT")
 			"burn":
 				parts.append("BURN")
+			"burning":
+				parts.append("BURNING")
 			"regenerate":
 				parts.append("REGEN")
 			"pack_hunter":
@@ -378,24 +380,39 @@ func _update_greased_indicator() -> void:
 	if _monster_data == null:
 		return
 
-	var has_greased := false
 	var modifiers = _data_get("modifiers", [])
+	var has_greased := false
+	var has_burning := false
 
 	for mod in modifiers:
-		if String(mod) == "greased":
-			has_greased = true
-			break
+		match String(mod):
+			"greased":
+				has_greased = true
+			"burning":
+				has_burning = true
 
-	if not has_greased:
+	if not has_greased and not has_burning:
 		return
 
+	var parts: Array[String] = []
+	if has_greased:
+		parts.append("G")
+	if has_burning:
+		parts.append("B")
+
 	greased_label = Label.new()
-	greased_label.text = "G"
+	greased_label.text = " ".join(parts)
 	greased_label.z_index = 100
 	greased_label.add_theme_font_size_override("font_size", 18)
-	greased_label.modulate = Color(1, 1, 0.2)
 	greased_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	greased_label.add_theme_constant_override("outline_size", 4)
 	greased_label.position = Vector2(4, 2)
+
+	if has_burning and not has_greased:
+		greased_label.modulate = Color(1.0, 0.35, 0.1)
+	elif has_greased and not has_burning:
+		greased_label.modulate = Color(1, 1, 0.2)
+	else:
+		greased_label.modulate = Color(1.0, 0.75, 0.2)
 
 	add_child(greased_label)

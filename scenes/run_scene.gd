@@ -688,12 +688,13 @@ func _on_instinct_dropped_to_board(source_index: int, slot_index: int, source_ty
 			return
 
 		instinct_dict = {
-			"id": item.id,
-			"name": item.display_name,
-			"description": item.description,
-			"type": item.instinct_type,
-			"rule": item.instinct_rule
-		}
+	"id": item.id,
+	"name": item.display_name,
+	"description": item.description,
+	"type": item.instinct_type,
+	"rule": item.instinct_rule,
+	"value": item.instinct_value
+}
 
 		var success := GameState.add_instinct_to_monster(target_monster, instinct_dict)
 		if not success:
