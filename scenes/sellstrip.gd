@@ -1,6 +1,6 @@
 extends PanelContainer
 
-signal card_sold(source_type: String, source_index: int)
+signal card_sold(source_type: String, source_index: int, monster: MonsterData)
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -36,4 +36,8 @@ func _drop_data(_at_position: Vector2, data) -> void:
 	if not data.has("source_index"):
 		return
 
-	card_sold.emit(data["source_type"], data["source_index"])
+	card_sold.emit(
+	data["source_type"],
+	data["source_index"],
+	data.get("monster", null)
+)

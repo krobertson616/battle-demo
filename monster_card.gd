@@ -1,16 +1,14 @@
 extends Button
 signal modifier_changed
 signal instinct_dropped_on_card(source_index: int, slot_index: int, source_type: String)
+signal board_swap_requested(source_index: int, target_index: int)
 
 @onready var portrait: TextureRect = $PanelContainer/MarginContainer/VBoxContainer/Portrait
 @onready var name_label: Label = $PanelContainer/MarginContainer/VBoxContainer/NameLabel
 @onready var stats_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/StatsLabel
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ModifierLabel
 @onready var slots_label: Label = $PanelContainer/MarginContainer/VBoxContainer/SlotsLabel
-@onready var socket_row: HBoxContainer = $PanelContainer/MarginContainer/VBoxContainer/SocketRow
-@onready var socket_button_0: Button = $PanelContainer/MarginContainer/VBoxContainer/SocketRow/SocketButton0
-@onready var socket_button_1: Button = $PanelContainer/MarginContainer/VBoxContainer/SocketRow/SocketButton1
-@onready var modifier_popup: PopupMenu = $ModifierPopup
+
 
 var _monster_data = null
 var source_type: String = ""
@@ -18,13 +16,7 @@ var source_index: int = -1
 var _pending_slot_index: int = -1
 var greased_label: Label = null
 
-func _ready() -> void:
-	if socket_button_0:
-		socket_button_0.pressed.connect(_on_socket_pressed.bind(0))
-	if socket_button_1:
-		socket_button_1.pressed.connect(_on_socket_pressed.bind(1))
-	if modifier_popup:
-		modifier_popup.id_pressed.connect(_on_modifier_popup_selected)
+
 
 func setup(monster, p_source_type: String = "", p_source_index: int = -1) -> void:
 	_monster_data = monster
@@ -44,8 +36,7 @@ func _apply_data() -> void:
 
 	_update_modifier_label()
 	_update_slots_label()
-	_update_socket_buttons()
-	_update_status_tint()
+
 	_update_greased_indicator()
 func _update_status_tint() -> void:
 	print("CARD TINT CHECK:", _monster_data.display_name, " modifiers=", _monster_data.modifiers)
@@ -65,48 +56,7 @@ func _update_status_tint() -> void:
 		self_modulate = Color(1.0, 0.96, 0.78, 1.0)
 	else:
 		self_modulate = Color(1, 1, 1, 1)
-func _update_socket_buttons() -> void:
-	if _monster_data == null:
-		socket_row.visible = false
-		return
 
-	var total: int = int(_monster_data.modifier_slots)
-	var filled: int = int(_monster_data.equipped_modifiers.size())
-
-	# Show sockets only on board cards for now
-	socket_row.visible = (source_type == "board" and total > 0)
-
-	socket_button_0.visible = total >= 1
-	socket_button_1.visible = total >= 2
-
-	if total >= 1:
-		socket_button_0.text = "[X]" if filled >= 1 else "[ ]"
-
-	if total >= 2:
-		socket_button_1.text = "[X]" if filled >= 2 else "[ ]"
-
-func _on_socket_pressed(slot_index: int) -> void:
-	if _monster_data == null:
-		return
-
-	# Don't overwrite a filled slot
-	if slot_index < _monster_data.equipped_modifiers.size():
-		return
-
-	_pending_slot_index = slot_index
-
-	modifier_popup.clear()
-	modifier_popup.add_item(" Thorns", 0)
-	modifier_popup.add_item(" Shield", 1)
-	modifier_popup.add_item("⚔ Parry", 2)
-	modifier_popup.add_item(" Oil", 3)
-
-	modifier_popup.add_separator()
-
-	modifier_popup.add_item(" Hunter Instinct", 100)
-
-	modifier_popup.position = Vector2i(get_global_mouse_position())
-	modifier_popup.popup()
 
 func _on_modifier_popup_selected(id: int) -> void:
 	if _monster_data == null:
@@ -168,8 +118,10 @@ func _get_drag_data(_at_position: Vector2):
 	set_drag_preview(preview_root)
 
 	return {
+		"card_type": "monster",
 		"source_type": source_type,
-		"source_index": source_index
+		"source_index": source_index,
+		"monster": _monster_data
 	}
 
 func _notification(what):
@@ -197,8 +149,7 @@ func _update_modifier_label() -> void:
 				parts.append("PACK")
 			"oil":
 				parts.append("OIL")
-			"greased":
-				parts.append("GREASED")
+			"greased": pass
 			_:
 				parts.append(String(mod).to_upper())
 
@@ -316,31 +267,41 @@ func _update_slots_label() -> void:
 func _can_drop_data(_pos, data) -> bool:
 	if source_type != "board":
 		return false
-
 	if typeof(data) != TYPE_DICTIONARY:
 		return false
 
 	var drag_card_type: String = String(data.get("card_type", "monster"))
 	var drag_source_type: String = String(data.get("source_type", ""))
 
-	return drag_card_type == "instinct" and (drag_source_type == "hand" or drag_source_type == "board_instinct")
+	# Allow instincts onto board monsters
+	if drag_card_type == "instinct":
+		return drag_source_type == "hand" or drag_source_type == "board_instinct"
+
+	# Allow board monster onto another board monster to swap
+	if drag_card_type == "monster":
+		return drag_source_type == "board"
+
+	return false
 
 
 func _drop_data(_pos, data) -> void:
 	if source_type != "board":
 		return
-
 	if typeof(data) != TYPE_DICTIONARY:
 		return
 
 	var drag_card_type: String = String(data.get("card_type", "monster"))
-	if drag_card_type != "instinct":
-		return
-
 	var drag_source_type: String = String(data.get("source_type", ""))
 	var drag_source_index: int = int(data.get("source_index", -1))
 
-	instinct_dropped_on_card.emit(drag_source_index, source_index, drag_source_type)
+	if drag_card_type == "instinct":
+		instinct_dropped_on_card.emit(drag_source_index, source_index, drag_source_type)
+		return
+
+	if drag_card_type == "monster" and drag_source_type == "board":
+		if drag_source_index == source_index:
+			return
+		board_swap_requested.emit(drag_source_index, source_index)
 func _update_greased_indicator() -> void:
 	# Remove old label if it exists
 	if greased_label != null:

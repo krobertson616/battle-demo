@@ -80,11 +80,11 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 
 	if id == "golem":
 		m.modifiers.append("taunt")
-		m.modifier_slots = 1
+	
 
 	if id == "stone_guardian":
 		m.modifiers.append("taunt")
-		m.modifier_slots = 2
+	
 
 	if id == "wolf":
 		m.modifiers.append("pack_hunter")

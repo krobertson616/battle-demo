@@ -23,7 +23,7 @@ var instinct_card_scene = preload("res://scenes/instinct_card.tscn")
 func _ready() -> void:
 	item_pool = _create_item_pool()
 	sell_strip.card_sold.connect(_on_card_sold_to_shop)
-
+	shop_row.card_sold.connect(_on_card_sold_to_shop)
 	GameState.sell_strip_ref = sell_strip
 
 	reroll_btn.pressed.connect(_reroll)
@@ -213,11 +213,24 @@ func refresh_ui() -> void:
 			card.setup(m, "board", i)
 			card.modifier_changed.connect(refresh_ui)
 			card.instinct_dropped_on_card.connect(_on_instinct_dropped_to_board)
+			card.board_swap_requested.connect(_on_board_swap_requested)
 			slot.center_container.add_child(card)
 
 	reroll_btn.text = "Reroll (1)"
 	start_btn.text = "Start Combat"
+func _on_board_swap_requested(from_index: int, to_index: int) -> void:
+	if from_index < 0 or from_index >= BOARD_SIZE:
+		return
+	if to_index < 0 or to_index >= BOARD_SIZE:
+		return
+	if from_index == to_index:
+		return
 
+	var temp = GameState.board_monsters[from_index]
+	GameState.board_monsters[from_index] = GameState.board_monsters[to_index]
+	GameState.board_monsters[to_index] = temp
+
+	refresh_ui()
 func _buy(i: int) -> void:
 	if i < 0 or i >= GameState.shop_monsters.size():
 		return
@@ -455,32 +468,47 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 	check_for_evolution()
 	refresh_ui()
 	
-func _on_card_sold_to_shop(source_type: String, source_index: int) -> void:
+func _on_card_sold_to_shop(source_type: String, source_index: int, dragged_monster: MonsterData = null) -> void:
 	print("SELL TRIGGERED: ", source_type, " ", source_index)
+
 	if source_type == "hand":
-		if source_index < 0 or source_index >= GameState.hand_cards.size():
-			return
+		var m: MonsterData = dragged_monster
 
-		var entry = GameState.hand_cards[source_index]
-		if String(entry.get("card_type", "")) != "monster":
-			add_log("Only monster cards can be sold for now.")
-			return
-
-			var m: MonsterData = entry.get("monster")
-			if m == null:
+		if m == null:
+			if source_index < 0 or source_index >= GameState.hand_cards.size():
 				return
 
-			GameState.return_monster_instincts_to_hand(m)
-			GameState.hand_cards.remove_at(source_index)
+			var fallback_entry = GameState.hand_cards[source_index]
+			if String(fallback_entry.get("card_type", "")) != "monster":
+				add_log("Only monster cards can be sold for now.")
+				return
 
-			var old_index := GameState.hand_monsters.find(m)
-			if old_index != -1:
-				GameState.hand_monsters.remove_at(old_index)
+			m = fallback_entry.get("monster")
 
-			GameState.gold += 1
-			add_log("Sold %s." % m.display_name)
-			refresh_ui()
+		if m == null:
 			return
+
+		var remove_index := -1
+		for i in range(GameState.hand_cards.size()):
+			var entry = GameState.hand_cards[i]
+			if String(entry.get("card_type", "")) == "monster" and entry.get("monster") == m:
+				remove_index = i
+				break
+
+		if remove_index == -1:
+			return
+
+		GameState.return_monster_instincts_to_hand(m)
+		GameState.hand_cards.remove_at(remove_index)
+
+		var old_index := GameState.hand_monsters.find(m)
+		if old_index != -1:
+			GameState.hand_monsters.remove_at(old_index)
+
+		GameState.gold += 1
+		add_log("Sold %s." % m.display_name)
+		refresh_ui()
+		return
 
 	if source_type == "board":
 		if source_index < 0 or source_index >= BOARD_SIZE:
