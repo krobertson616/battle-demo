@@ -1,6 +1,9 @@
 class_name CombatResolver
 extends RefCounted
 
+const GREASED_MISS_CHANCE := 0.25
+static func _roll_greased_miss(attacker: Dictionary) -> bool:
+	return _has_modifier(attacker, "greased") and randf() < GREASED_MISS_CHANCE
 static func _get_next_living_index(units: Array, start_index: int) -> int:
 	if units.is_empty():
 		return -1
@@ -237,9 +240,37 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					log_lines.append("%s regenerates 1 health" % p["name"])
 
 			var p_target: Dictionary = e_units[p_target_index]
+			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
+			events.append({
+				"type": "attack",
+				"attacker_side": "player",
+				"attacker_name": p["name"],
+				"attacker_index": p_attacker_index,
+				"target_side": "enemy",
+				"target_name": p_target["name"],
+				"target_index": p_target_index
+			})
 
+			if _roll_greased_miss(p):
+				log_lines.append("%s slips and misses!" % p["name"])
+				events.append({
+					"type": "miss",
+					"target_side": "enemy",
+					"target_name": p_target["name"],
+					"target_index": p_target_index
+				})
+
+				if not p_units.is_empty():
+					var next_p_index: int = p_attacker_index + 1
+					if next_p_index >= p_units.size():
+						next_p_index = 0
+					p_turn_index = next_p_index
+
+				player_turn = false
+				continue
 			var damage_to_enemy: int = int(p["attack"])
 			var burn_hit_enemy := false
+			
 
 			if _has_modifier(p, "burn"):
 				damage_to_enemy += 1
@@ -262,18 +293,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"status": "greased"
 				})
 				log_lines.append("%s ignites %s for +1 bonus damage" % [p["name"], p_target["name"]])
-
-			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
-
-			events.append({
-				"type": "attack",
-				"attacker_side": "player",
-				"attacker_name": p["name"],
-				"attacker_index": p_attacker_index,
-				"target_side": "enemy",
-				"target_name": p_target["name"],
-				"target_index": p_target_index
-			})
 
 			p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
 			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
@@ -338,7 +357,34 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					log_lines.append("%s regenerates 1 health" % e["name"])
 
 			var e_target: Dictionary = p_units[e_target_index]
+			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
+			events.append({
+				"type": "attack",
+				"attacker_side": "enemy",
+				"attacker_name": e["name"],
+				"attacker_index": e_attacker_index,
+				"target_side": "player",
+				"target_name": e_target["name"],
+				"target_index": e_target_index
+			})
 
+			if _roll_greased_miss(e):
+				log_lines.append("%s slips and misses!" % e["name"])
+				events.append({
+					"type": "miss",
+					"target_side": "player",
+					"target_name": e_target["name"],
+					"target_index": e_target_index
+				})
+
+				if not e_units.is_empty():
+					var next_e_index: int = e_attacker_index + 1
+					if next_e_index >= e_units.size():
+						next_e_index = 0
+					e_turn_index = next_e_index
+
+				player_turn = true
+				continue
 			var damage_to_player: int = int(e["attack"])
 			var burn_hit_player := false
 
@@ -364,17 +410,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				})
 
 				log_lines.append("%s ignites %s for +1 bonus damage" % [e["name"], e_target["name"]])
-			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
-
-			events.append({
-				"type": "attack",
-				"attacker_side": "enemy",
-				"attacker_name": e["name"],
-				"attacker_index": e_attacker_index,
-				"target_side": "player",
-				"target_name": e_target["name"],
-				"target_index": e_target_index
-			})
 
 			e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
 			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):

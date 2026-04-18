@@ -16,6 +16,7 @@ var _monster_data = null
 var source_type: String = ""
 var source_index: int = -1
 var _pending_slot_index: int = -1
+var greased_label: Label = null
 
 func _ready() -> void:
 	if socket_button_0:
@@ -45,6 +46,7 @@ func _apply_data() -> void:
 	_update_slots_label()
 	_update_socket_buttons()
 	_update_status_tint()
+	_update_greased_indicator()
 func _update_status_tint() -> void:
 	print("CARD TINT CHECK:", _monster_data.display_name, " modifiers=", _monster_data.modifiers)
 	if _monster_data == null:
@@ -339,3 +341,39 @@ func _drop_data(_pos, data) -> void:
 	var drag_source_index: int = int(data.get("source_index", -1))
 
 	instinct_dropped_on_card.emit(drag_source_index, source_index, drag_source_type)
+func _update_greased_indicator() -> void:
+	# Remove old label if it exists
+	if greased_label != null:
+		greased_label.queue_free()
+		greased_label = null
+
+	if _monster_data == null:
+		return
+
+	var has_greased := false
+
+	for mod in _monster_data.modifiers:
+		if String(mod) == "greased":
+			has_greased = true
+			break
+
+	if not has_greased:
+		return
+
+	# Create simple "G" label
+	greased_label = Label.new()
+	greased_label.text = "G"
+	greased_label.z_index = 100
+
+	# Make it readable
+	greased_label.add_theme_font_size_override("font_size", 18)
+	greased_label.modulate = Color(1, 1, 0.2) # yellowish
+
+	# Optional outline (helps a lot visually)
+	greased_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	greased_label.add_theme_constant_override("outline_size", 4)
+
+	# Position top-left of card
+	greased_label.position = Vector2(4, 2)
+
+	add_child(greased_label)

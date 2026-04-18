@@ -21,6 +21,7 @@ const ATTACK_PAUSE := 0.14
 const DAMAGE_PAUSE := 0.22
 const DEATH_PAUSE := 0.45
 
+
 func _ready() -> void:
 	#print("ARENA selected_location =", GameState.selected_location)
 	#print("ARENA active_node_type =", GameState.active_node_type)
@@ -167,7 +168,14 @@ func _play_combat_events(events: Array) -> void:
 
 					_render_teams()
 					await get_tree().create_timer(0.08).timeout
+			"miss":
+					var target_side: String = str(event.get("target_side", ""))
+					var target_name: String = str(event.get("target_name", ""))
+					var target_index: int = int(event.get("target_index", 0))
 
+					combat_log.append_text("%s dodges the attack!\n" % target_name)
+					_show_floating_miss(target_side, target_index)
+					await get_tree().create_timer(0.18).timeout
 			"damage":
 				var target_side: String = str(event.get("target_side", ""))
 				var target_name: String = str(event.get("target_name", ""))
@@ -342,3 +350,26 @@ func _set_background() -> void:
 		background.texture = texture
 	elif background is Sprite2D:
 		background.texture = texture
+func _show_floating_miss(side: String, index: int) -> void:
+	var holder = _get_holder_node(side, index)
+	if holder == null:
+		return
+
+	var label := Label.new()
+	label.text = "MISS"
+	label.add_theme_font_size_override("font_size", 26)
+	label.modulate = Color(1, 1, 1, 1)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 6)
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(label)
+
+	var card_center = holder.get_global_position() + (holder.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-28, -35)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -40), 0.5)
+	tween.parallel().tween_property(label, "modulate", Color(1, 1, 1, 0), 0.5)
+	tween.finished.connect(func(): label.queue_free())
