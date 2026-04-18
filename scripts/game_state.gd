@@ -93,7 +93,7 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 		m.modifiers.append("burn")
 
 	if id == "slime":
-		m.modifiers.append("regenerate")
+		m.modifiers.append("oil")
 
 	if id == "alpha_wolf":
 		m.modifiers.append("pack_hunter")
@@ -102,7 +102,7 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 		m.modifiers.append("burn")
 
 	if id == "superslime":
-		m.modifiers.append("regenerate")
+		m.modifiers.append("oil")
 
 	if id == "wolf":
 		m.set_meta("texture", load("res://assets/shen.png"))

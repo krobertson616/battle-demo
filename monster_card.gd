@@ -76,11 +76,14 @@ func _on_socket_pressed(slot_index: int) -> void:
 	_pending_slot_index = slot_index
 
 	modifier_popup.clear()
-	modifier_popup.add_item("🌵 Thorns", 0)
-	modifier_popup.add_item("🛡 Shield", 1)
+	modifier_popup.add_item(" Thorns", 0)
+	modifier_popup.add_item(" Shield", 1)
 	modifier_popup.add_item("⚔ Parry", 2)
+	modifier_popup.add_item(" Oil", 3)
+
 	modifier_popup.add_separator()
-	modifier_popup.add_item("🎯 Hunter Instinct", 100)
+
+	modifier_popup.add_item(" Hunter Instinct", 100)
 
 	modifier_popup.position = Vector2i(get_global_mouse_position())
 	modifier_popup.popup()
@@ -99,6 +102,8 @@ func _on_modifier_popup_selected(id: int) -> void:
 			modifier_id = "shield"
 		2:
 			modifier_id = "parry"
+		3:
+			modifier_id = "oil"
 		100:
 			instinct = {
 				"id": "target_highest_health",
@@ -163,13 +168,30 @@ func _update_modifier_label() -> void:
 	for mod in _monster_data.modifiers:
 		match String(mod):
 			"taunt":
-				parts.append("🛡 TAUNT")
+				parts.append(" TAUNT")
 			"burn":
-				parts.append("🔥 BURN")
+				parts.append(" BURN")
 			"regenerate":
-				parts.append("💚 REGEN")
+				parts.append(" REGEN")
 			"pack_hunter":
-				parts.append("🐺 PACK")
+				parts.append(" PACK")
+			"oil":
+				parts.append(" OIL")
+			"greased":
+				parts.append(" GREASED")
+			_:
+				parts.append(String(mod).to_upper())
+
+	for mod in _monster_data.equipped_modifiers:
+		match String(mod):
+			"thorns":
+				parts.append(" THORNS")
+			"shield":
+				parts.append(" SHIELD")
+			"parry":
+				parts.append(" PARRY")
+			"oil":
+				parts.append(" OIL")
 			_:
 				parts.append(String(mod).to_upper())
 

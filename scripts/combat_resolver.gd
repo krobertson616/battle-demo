@@ -239,10 +239,22 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			var p_target: Dictionary = e_units[p_target_index]
 
 			var damage_to_enemy: int = int(p["attack"])
+			var burn_hit_enemy := false
+
 			if _has_modifier(p, "burn"):
 				damage_to_enemy += 1
+				burn_hit_enemy = true
+
 			if _has_modifier(p, "pack_hunter") and _has_other_living_tribe_ally(p_units, p_attacker_index, "Fang"):
 				damage_to_enemy += 1
+
+			if burn_hit_enemy and _has_modifier(p_target, "greased"):
+				damage_to_enemy += 1
+
+				if p_target.has("modifiers"):
+					p_target["modifiers"].erase("greased")
+
+				log_lines.append("%s ignites %s for +1 bonus damage" % [p["name"], p_target["name"]])
 
 			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
 
@@ -257,7 +269,12 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			})
 
 			p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
+			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
+				if not p_target.has("modifiers"):
+					p_target["modifiers"] = []
 
+				p_target["modifiers"].append("greased")
+				log_lines.append("%s coats %s in oil" % [p["name"], p_target["name"]])
 			log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
 
 			events.append({
@@ -308,10 +325,22 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			var e_target: Dictionary = p_units[e_target_index]
 
 			var damage_to_player: int = int(e["attack"])
+			var burn_hit_player := false
+
 			if _has_modifier(e, "pack_hunter") and _has_other_living_tribe_ally(e_units, e_attacker_index, "Fang"):
 				damage_to_player += 1
+
 			if _has_modifier(e, "burn"):
 				damage_to_player += 1
+				burn_hit_player = true
+
+			if burn_hit_player and _has_modifier(e_target, "greased"):
+				damage_to_player += 1
+
+				if e_target.has("modifiers"):
+					e_target["modifiers"].erase("greased")
+
+				log_lines.append("%s ignites %s for +1 bonus damage" % [e["name"], e_target["name"]])
 
 			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
 
@@ -326,7 +355,12 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			})
 
 			e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
+			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
+				if not e_target.has("modifiers"):
+					e_target["modifiers"] = []
 
+				e_target["modifiers"].append("greased")
+				log_lines.append("%s coats %s in oil" % [e["name"], e_target["name"]])
 			log_lines.append("%s takes %d damage" % [e_target["name"], damage_to_player])
 
 			events.append({
