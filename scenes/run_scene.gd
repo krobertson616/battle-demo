@@ -39,10 +39,12 @@ func _ready() -> void:
 		GameState.hand_monsters = []
 		GameState.shop_monsters = []
 		GameState.run_started = true
+		GameState.build_first_run()
 		GameState.map_nodes = GameState.build_test_map()
 		GameState.current_node_id = 0
 		GameState.selected_next_node_id = -1
 		GameState.hand_cards.clear()
+		
 		
 	if GameState.shop_monsters.is_empty():
 		roll_shop()
@@ -50,9 +52,8 @@ func _ready() -> void:
 	refresh_ui()
 	if GameState.round_num == 1 and GameState.pending_result.is_empty():
 		add_log("Run started.")
-		
-	
-	
+
+
 func _apply_pending_combat_result() -> void:
 	if GameState.pending_result.is_empty():
 		return

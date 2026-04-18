@@ -21,6 +21,8 @@ var current_node_id: int = -1
 var selected_next_node_id: int = -1
 var active_node_type: String = ""
 var auto_start_combat_from_map: bool = false
+var run_nodes = []
+var current_node_index: int = 0
 
 var all_monsters: Array[MonsterData] = []
 var shop_pool: Array[MonsterData] = []
@@ -369,6 +371,21 @@ func get_instinct_shop_pool() -> Array:
 	]
 func add_instinct_to_hand(item: ItemData) -> void:
 	hand_instincts.append(item)
+func build_first_run():
+	run_nodes = [
+		{"type": "combat", "id": "cave_1"},
+		{"type": "combat", "id": "cave_2"},
+		{"type": "reward", "id": "reward_1"},
+		{"type": "elite", "id": "elite_cave"},
+		{"type": "campfire"},
+		{"type": "combat", "id": "forest_1"},
+		{"type": "shop"},
+		{"type": "boss", "id": "midboss"},
+		{"type": "combat", "id": "crypt_1"},
+		{"type": "reward", "id": "reward_2"},
+		{"type": "boss", "id": "final_boss"},
+	]
+	current_node_index = 0
 func instinct_dict_to_item(instinct: Dictionary) -> ItemData:
 	var item := ItemData.new()
 	item.id = String(instinct.get("id", "instinct"))
