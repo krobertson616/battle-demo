@@ -15,9 +15,9 @@ var visual_player_team: Array = []
 const CARD_WIDTH := 150
 const CARD_HEIGHT := 180
 
-const ATTACK_ANIM_TIME := 0.22
+const ATTACK_ANIM_TIME := 0.28
 const HIT_ANIM_TIME := 0.18
-const ATTACK_PAUSE := 0.22
+const ATTACK_PAUSE := 0.14
 const DAMAGE_PAUSE := 0.22
 const DEATH_PAUSE := 0.45
 
@@ -120,6 +120,14 @@ func _play_combat_events(events: Array) -> void:
 						event.get("target_name", "")
 					]
 				)
+
+				await _animate_attack(
+					str(event.get("attacker_side", "")),
+					int(event.get("attacker_index", 0)),
+					str(event.get("target_side", "")),
+					int(event.get("target_index", 0))
+				)
+				await get_tree().create_timer(ATTACK_PAUSE).timeout
 			"status_applied":
 				var target_side: String = str(event.get("target_side", ""))
 				var target_name: String = str(event.get("target_name", ""))
@@ -159,13 +167,6 @@ func _play_combat_events(events: Array) -> void:
 
 					_render_teams()
 					await get_tree().create_timer(0.08).timeout
-				await _animate_attack(
-	str(event.get("attacker_side", "")),
-	int(event.get("attacker_index", 0)),
-	str(event.get("target_side", "")),
-	int(event.get("target_index", 0))
-)
-				await get_tree().create_timer(ATTACK_PAUSE).timeout
 
 			"damage":
 				var target_side: String = str(event.get("target_side", ""))
@@ -210,13 +211,20 @@ func _play_combat_events(events: Array) -> void:
 				combat_log.append_text("%s dies!\n" % dead_name)
 				await get_tree().create_timer(DEATH_PAUSE).timeout
 
-func _get_card_node(side: String, index: int) -> Control:
+func _get_holder_node(side: String, index: int) -> Control:
 	var row: HBoxContainer = player_row if side == "player" else enemy_row
-
 	if index < 0 or index >= row.get_child_count():
 		return null
 
 	var holder = row.get_child(index)
+	if holder == null:
+		return null
+
+	return holder
+
+
+func _get_card_node(side: String, index: int) -> Control:
+	var holder = _get_holder_node(side, index)
 	if holder == null or holder.get_child_count() == 0:
 		return null
 
@@ -225,24 +233,23 @@ func _get_card_node(side: String, index: int) -> Control:
 func _animate_attack(attacker_side: String, attacker_index: int, target_side: String, target_index: int) -> void:
 	var attacker = _get_card_node(attacker_side, attacker_index)
 	var target = _get_card_node(target_side, target_index)
-
 	if attacker == null:
 		return
 
 	var original_pos: Vector2 = attacker.position
 	var original_scale: Vector2 = attacker.scale
-	var attack_pos: Vector2 = original_pos
+
+	var lunge_offset := Vector2(0, -70)
+	if attacker_side == "enemy":
+		lunge_offset = Vector2(0, 70)
 
 	if target != null:
-		var attacker_center = attacker.get_global_position() + (attacker.size / 2.0)
-		var target_center = target.get_global_position() + (target.size / 2.0)
-
-		var direction = (target_center - attacker_center).normalized()
-		attack_pos = original_pos + direction * 50.0
+		var dx = target.get_global_position().x - attacker.get_global_position().x
+		lunge_offset.x = clamp(dx * 0.25, -35.0, 35.0)
 
 	var tween = create_tween()
-	tween.tween_property(attacker, "position", attack_pos, ATTACK_ANIM_TIME)
-	tween.parallel().tween_property(attacker, "scale", Vector2(1.05, 1.05), ATTACK_ANIM_TIME)
+	tween.tween_property(attacker, "position", original_pos + lunge_offset, ATTACK_ANIM_TIME)
+	tween.parallel().tween_property(attacker, "scale", Vector2(1.08, 1.08), ATTACK_ANIM_TIME)
 	tween.tween_property(attacker, "position", original_pos, ATTACK_ANIM_TIME)
 	tween.parallel().tween_property(attacker, "scale", original_scale, ATTACK_ANIM_TIME)
 
@@ -268,8 +275,8 @@ func _animate_hit(side: String, index: int) -> void:
 	await tween.finished
 	
 func _show_floating_damage(side: String, index: int, amount: int) -> void:
-	var card = _get_card_node(side, index)
-	if card == null:
+	var holder = _get_holder_node(side, index)
+	if holder == null:
 		return
 
 	var label := Label.new()
@@ -280,10 +287,9 @@ func _show_floating_damage(side: String, index: int, amount: int) -> void:
 	label.add_theme_constant_override("outline_size", 6)
 	label.z_index = 100
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
 	add_child(label)
 
-	var card_center = card.get_global_position() + (card.size / 2.0)
+	var card_center = holder.get_global_position() + (holder.size / 2.0)
 	var local_pos = card_center - global_position
 	label.position = local_pos + Vector2(-20, -40)
 
@@ -292,10 +298,7 @@ func _show_floating_damage(side: String, index: int, amount: int) -> void:
 	tween.parallel().tween_property(label, "scale", Vector2(1.2, 1.2), 0.2)
 	tween.tween_property(label, "scale", Vector2(1, 1), 0.2)
 	tween.parallel().tween_property(label, "modulate", Color(1, 0.1, 0.1, 0), 0.6)
-
-	tween.finished.connect(func():
-		label.queue_free()
-	)
+	tween.finished.connect(func(): label.queue_free())
 func _animate_death(side: String, index: int) -> void:
 	var card = _get_card_node(side, index)
 	if card == null:
