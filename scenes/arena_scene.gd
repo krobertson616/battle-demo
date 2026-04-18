@@ -136,51 +136,39 @@ func _play_combat_events(events: Array) -> void:
 				var remaining_hp: int = int(event.get("remaining_hp", 0))
 				var damage_amount: int = int(event.get("amount", 0))
 
-				if target_side == "enemy":
-					for monster in visual_enemy_team:
-						if monster.display_name == target_name:
-							monster.health = remaining_hp
-							break
-				elif target_side == "player":
-					for monster in visual_player_team:
-						if monster.display_name == target_name:
-							monster.health = remaining_hp
-							break
-
-				_render_teams()
-
 				combat_log.append_text(
 					"%s takes %d damage (%d HP left)\n" % [
-						target_name,
-						damage_amount,
-						remaining_hp
+						target_name, damage_amount, remaining_hp
 					]
 				)
-
 				_show_floating_damage(target_side, target_index, damage_amount)
 				await _animate_hit(target_side, target_index)
+
+				if target_side == "enemy":
+					if target_index >= 0 and target_index < visual_enemy_team.size():
+						visual_enemy_team[target_index].health = remaining_hp
+				elif target_side == "player":
+					if target_index >= 0 and target_index < visual_player_team.size():
+						visual_player_team[target_index].health = remaining_hp
+
+				_render_teams()
 				await get_tree().create_timer(DAMAGE_PAUSE).timeout
 
 			"death":
 				var dead_side: String = str(event.get("side", ""))
 				var dead_name: String = str(event.get("name", ""))
-
 				var dead_index: int = int(event.get("target_index", 0))
+
 				await _animate_death(dead_side, dead_index)
 
 				if dead_side == "enemy":
-					for i in range(visual_enemy_team.size()):
-						if visual_enemy_team[i].display_name == dead_name:
-							visual_enemy_team.remove_at(i)
-							break
+					if dead_index >= 0 and dead_index < visual_enemy_team.size():
+						visual_enemy_team.remove_at(dead_index)
 				elif dead_side == "player":
-					for i in range(visual_player_team.size()):
-						if visual_player_team[i].display_name == dead_name:
-							visual_player_team.remove_at(i)
-							break
+					if dead_index >= 0 and dead_index < visual_player_team.size():
+						visual_player_team.remove_at(dead_index)
 
 				_render_teams()
-
 				combat_log.append_text("%s dies!\n" % dead_name)
 				await get_tree().create_timer(DEATH_PAUSE).timeout
 
