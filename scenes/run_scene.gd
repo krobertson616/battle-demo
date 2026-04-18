@@ -273,7 +273,6 @@ func _reroll() -> void:
 
 func _start_combat() -> void:
 	var player_team: Array = []
-
 	for i in range(BOARD_SIZE):
 		var m = GameState.board_monsters[i]
 		if m != null:
@@ -283,15 +282,7 @@ func _start_combat() -> void:
 		add_log("Need at least one unit.")
 		return
 
-	# If no map destination selected yet, go choose one
-	if GameState.selected_location == "":
-		get_tree().change_scene_to_file("res://scenes/map_scene.tscn")
-		return
-
-	GameState.pending_player_team = player_team.duplicate()
-	GameState.pending_enemy_team = GameState.build_enemy_team_for_current_node()
-
-	get_tree().change_scene_to_file("res://scenes/arena_scene.tscn")
+	get_tree().change_scene_to_file("res://scenes/map_scene.tscn")
 func add_log(t: String) -> void:
 	# Temporary: keep combat logs out of the Output panel
 	pass

@@ -13,5 +13,12 @@ func _ready() -> void:
 	crypt_button.pressed.connect(_on_location_pressed.bind("crypt"))
 
 func _on_location_pressed(location_id: String) -> void:
+	var player_team := GameState.build_player_team_from_board()
+	if player_team.is_empty():
+		get_tree().change_scene_to_file("res://scenes/run_scene.tscn")
+		return
+
 	GameState.select_map_location(location_id)
-	get_tree().change_scene_to_file("res://scenes/run_scene.tscn")
+	GameState.pending_player_team = player_team
+	GameState.pending_enemy_team = GameState.build_enemy_team_for_current_node()
+	get_tree().change_scene_to_file("res://scenes/arena_scene.tscn")
