@@ -51,30 +51,52 @@ func _build_monster_pools() -> void:
 	enemy_pool.clear()
 
 	all_monsters = [
+		# Existing base roster
 		_make("wolf", "Sheni", "Fang", 1, 2, 3, "alpha_wolf"),
 		_make("imp", "Imp", "Ember", 1, 99, 99, "fireling"),
 		_make("slime", "Slime", "Slime", 1, 2, 2, "superslime"),
-		_make("superslime", "King Slime", "Slime", 1, 1, 3, "none"),
+		_make("golem", "Pebble", "Stone", 1, 1, 5, "stone_guardian"),
+
+		# Existing evolutions
 		_make("alpha_wolf", "Shen-Zi", "Fang", 3, 3, 3, "none"),
 		_make("fireling", "Fireling", "Ember", 2, 2, 2, "none"),
-		_make("golem", "Pebble", "Stone", 1, 1, 5, "stone_guardian"),
+		_make("superslime", "King Slime", "Slime", 1, 1, 3, "none"),
 		_make("stone_guardian", "Guardian", "Stone", 3, 2, 7, "none"),
+
+		# New base shop creatures
+		_make("mossmender", "Mossmender", "Grove", 1, 1, 4, "elder_mossmender"),
+		_make("fang_adder", "Fang Adder", "Venom", 1, 2, 3, "venom_maw"),
+		_make("razor_mite", "Razor Mite", "Skitter", 1, 1, 3, "razor_horror"),
+		_make("frost_wisp", "Frost Wisp", "Frost", 1, 1, 4, "icebound_seer"),
+
+		# New evolutions
+		_make("elder_mossmender", "Elder Mossmender", "Grove", 4, 2, 6, "none"),
+		_make("venom_maw", "Venom Maw", "Venom", 4, 3, 5, "none"),
+		_make("razor_horror", "Razor Horror", "Skitter", 4, 2, 4, "none"),
+		_make("icebound_seer", "Icebound Seer", "Frost", 4, 2, 5, "none"),
 	]
 
 	shop_pool = [
 		get_monster_by_id("wolf"),
 		get_monster_by_id("imp"),
 		get_monster_by_id("slime"),
-		get_monster_by_id("golem")
+		get_monster_by_id("golem"),
+		get_monster_by_id("mossmender"),
+		get_monster_by_id("fang_adder"),
+		get_monster_by_id("razor_mite"),
+		get_monster_by_id("frost_wisp"),
 	]
 
 	enemy_pool = [
 		get_monster_by_id("wolf"),
 		get_monster_by_id("imp"),
 		get_monster_by_id("slime"),
-		get_monster_by_id("golem")
+		get_monster_by_id("golem"),
+		get_monster_by_id("mossmender"),
+		get_monster_by_id("fang_adder"),
+		get_monster_by_id("razor_mite"),
+		get_monster_by_id("frost_wisp"),
 	]
-
 func _make(id: String, display_name: String, tribe: String, cost: int, atk: int, hp: int, evolves_to_id: String) -> MonsterData:
 	var m := MonsterData.new()
 	m.id = id
@@ -93,30 +115,51 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 
 	if id == "golem":
 		m.modifiers.append("taunt")
-	
 
 	if id == "stone_guardian":
 		m.modifiers.append("taunt")
-	
 
 	if id == "wolf":
+		m.modifiers.append("pack_hunter")
+
+	if id == "alpha_wolf":
 		m.modifiers.append("pack_hunter")
 
 	if id == "imp":
 		m.modifiers.append("burn")
 
-	if id == "slime":
-		m.modifiers.append("oil")
-
-	if id == "alpha_wolf":
-		m.modifiers.append("pack_hunter")
-
 	if id == "fireling":
 		m.modifiers.append("burn")
+
+	if id == "slime":
+		m.modifiers.append("oil")
 
 	if id == "superslime":
 		m.modifiers.append("oil")
 
+	if id == "mossmender":
+		m.modifiers.append("heal")
+
+	if id == "elder_mossmender":
+		m.modifiers.append("heal")
+
+	if id == "fang_adder":
+		m.modifiers.append("poison")
+
+	if id == "venom_maw":
+		m.modifiers.append("poison")
+
+	if id == "razor_mite":
+		m.modifiers.append("windfury")
+
+	if id == "razor_horror":
+		m.modifiers.append("windfury")
+
+	if id == "frost_wisp":
+		m.modifiers.append("freeze")
+
+	if id == "icebound_seer":
+		m.modifiers.append("freeze")
 	if id == "wolf":
 		m.set_meta("texture", load("res://assets/shen.png"))
 	if id == "imp":
@@ -754,7 +797,7 @@ func start_new_run_from_map(location_id: String) -> void:
 		_:
 			selected_location_label = location_id.capitalize()
 
-	gold = 3
+	gold = 99
 	health = 10
 	round_num = 1
 	max_board_slots = 3

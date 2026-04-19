@@ -17,6 +17,31 @@ static func _get_next_living_index(units: Array, start_index: int) -> int:
 
 	return -1
 
+static func _get_most_injured_living_index(units: Array) -> int:
+	var best_index := -1
+	var best_missing := 0
+	var best_current_hp := 999999
+
+	for i in range(units.size()):
+		var hp := int(units[i]["health"])
+		var max_hp := int(units[i]["max_health"])
+
+		if hp <= 0:
+			continue
+
+		var missing := max_hp - hp
+		if missing <= 0:
+			continue
+
+		if missing > best_missing:
+			best_missing = missing
+			best_current_hp = hp
+			best_index = i
+		elif missing == best_missing and hp < best_current_hp:
+			best_current_hp = hp
+			best_index = i
+
+	return best_index
 
 static func _has_other_living_tribe_ally(units: Array, self_index: int, tribe_name: String) -> bool:
 	for i in range(units.size()):
@@ -257,6 +282,25 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				p["health"] = min(int(p["max_health"]), int(p["health"]) + 1)
 				if int(p["health"]) > old_hp:
 					log_lines.append("%s regenerates 1 health" % p["name"])
+			if _has_modifier(p, "heal"):
+				var heal_target_index := _get_most_injured_living_index(p_units)
+				if heal_target_index != -1:
+					var heal_target: Dictionary = p_units[heal_target_index]
+					var old_hp: int = int(heal_target["health"])
+
+					heal_target["health"] = min(int(heal_target["max_health"]), old_hp + 1)
+
+					if int(heal_target["health"]) > old_hp:
+						log_lines.append("%s heals %s for 1" % [p["name"], heal_target["name"]])
+						events.append({
+							"type": "heal",
+							"target_side": "player",
+							"target_name": heal_target["name"],
+							"target_index": heal_target_index,
+							"amount": 1,
+							"remaining_hp": heal_target["health"],
+							"source_name": p["name"]
+						})
 			if _has_modifier(p, "burning"):
 				var burn_damage := 1
 
@@ -413,6 +457,25 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				e["health"] = min(int(e["max_health"]), int(e["health"]) + 1)
 				if int(e["health"]) > old_hp:
 					log_lines.append("%s regenerates 1 health" % e["name"])
+			if _has_modifier(e, "heal"):
+				var heal_target_index := _get_most_injured_living_index(e_units)
+				if heal_target_index != -1:
+					var heal_target: Dictionary = e_units[heal_target_index]
+					var old_hp: int = int(heal_target["health"])
+
+					heal_target["health"] = min(int(heal_target["max_health"]), old_hp + 1)
+
+					if int(heal_target["health"]) > old_hp:
+						log_lines.append("%s heals %s for 1" % [e["name"], heal_target["name"]])
+						events.append({
+							"type": "heal",
+							"target_side": "enemy",
+							"target_name": heal_target["name"],
+							"target_index": heal_target_index,
+							"amount": 1,
+							"remaining_hp": heal_target["health"],
+							"source_name": e["name"]
+						})
 			if _has_modifier(e, "burning"):
 				var burn_damage := 1
 
