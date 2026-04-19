@@ -376,7 +376,7 @@ func _set_background() -> void:
 	]
 
 	match encounter_id:
-		"cave_1", "cave_2", "elite_1", "boss_1":
+		"cave_1", "cave_2", "cave_3", "cave_4", "cave_elite_1", "cave_boss_1":
 			if GameState.current_run_background_path != "":
 				texture = load(GameState.current_run_background_path)
 			else:
