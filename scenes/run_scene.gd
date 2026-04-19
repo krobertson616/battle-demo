@@ -7,6 +7,7 @@ const HAND_SIZE := 6
 
 var item_pool: Array = []
 
+
 @onready var top_bar: Label = $MarginContainer/VBoxContainer/TopBarLabel
 @onready var shop_row: HBoxContainer = $MarginContainer/VBoxContainer/ShopSection/ShopRow
 @onready var board_row: HBoxContainer = $MarginContainer/VBoxContainer/BoardRow
@@ -23,16 +24,29 @@ var item_pool: Array = []
 @onready var starter_panel: PanelContainer = $StarterPanel
 @onready var starter_choices_row: HBoxContainer = $StarterPanel/VBoxContainer/StarterChoicesRow
 
+
+@onready var event_overlay: CenterContainer = $EventOverlay
+@onready var event_panel: PanelContainer = $EventOverlay/EventPanel
+@onready var event_background: TextureRect = $EventOverlay/EventBackground
+@onready var event_title_label: Label = $EventOverlay/EventPanel/VBoxContainer/EventTitleLabel
+@onready var event_body_label: Label = $EventOverlay/EventPanel/VBoxContainer/EventBodyLabel
+@onready var event_choices_row: HBoxContainer = $EventOverlay/EventPanel/VBoxContainer/EventChoicesRow
+@onready var event_targets_row: HBoxContainer = $EventOverlay/EventPanel/VBoxContainer/EventTargetsRow
+
+
 var monster_card_scene = preload("res://scenes/monster_card.tscn")
 var board_slot_scene = preload("res://scenes/board_slot.tscn")
 var instinct_card_scene = preload("res://scenes/instinct_card.tscn")
 var extraction_picks_remaining: int = 0
-
+var active_event_id: String = ""
+var active_event_mode: String = ""
 
 func _ready() -> void:
 	sell_strip.card_sold.connect(_on_card_sold_to_shop)
 	continue_deeper_button.pressed.connect(_on_continue_deeper_pressed)
 	post_boss_panel.visible = false
+	event_overlay.visible = false
+	
 	GameState.sell_strip_ref = sell_strip
 
 	reroll_btn.pressed.connect(_reroll)
@@ -48,7 +62,7 @@ func _ready() -> void:
 		roll_shop()
 		
 	refresh_ui()
-	
+	_try_show_current_event()
 	if GameState.round_num == 1 and GameState.pending_result.is_empty():
 		add_log("Run started.")
 
@@ -271,6 +285,13 @@ func _reroll() -> void:
 
 func _start_combat() -> void:
 	var encounter_id := GameState.get_current_encounter_id()
+	if encounter_id == "":
+		print("No more encounters. Run complete.")
+		return
+
+	if GameState.is_event_encounter(encounter_id):
+		_show_event(encounter_id)
+		return
 	print("Starting encounter: ", encounter_id)
 
 	var player_team: Array = []
@@ -283,9 +304,6 @@ func _start_combat() -> void:
 		add_log("Need at least one unit.")
 		return
 
-	if encounter_id == "":
-		print("No more encounters. Run complete.")
-		return
 
 	GameState.pending_player_team = player_team
 	GameState.pending_enemy_team = GameState.build_enemy_team_for_encounter(encounter_id)
@@ -403,6 +421,7 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 
 	refresh_ui()
 func _on_card_sold_to_shop(card_type: String, source_type: String, source_index: int) -> void:
+	print("RUN SCENE SELL:", card_type, source_type, source_index)
 	if source_index < 0:
 		return
 
@@ -816,3 +835,171 @@ func _on_starter_selected(index: int) -> void:
 
 	add_log("Starting run with %s." % chosen.display_name)
 	refresh_ui()
+	
+func _try_show_current_event() -> void:
+	var encounter_id := GameState.get_current_encounter_id()
+	if encounter_id == "":
+		return
+	if not GameState.is_event_encounter(encounter_id):
+		return
+
+	_show_event(encounter_id)
+
+
+func _show_event(encounter_id: String) -> void:
+	active_event_id = encounter_id
+	active_event_mode = ""
+
+	_set_event_background(encounter_id)
+	event_overlay.visible = true
+	start_btn.disabled = true
+	reroll_btn.disabled = true
+
+	for c in event_choices_row.get_children():
+		c.queue_free()
+	for c in event_targets_row.get_children():
+		c.queue_free()
+
+	match encounter_id:
+		"event_crystal_infusion":
+			event_title_label.text = "Crystal Infusion"
+			event_body_label.text = "A humming crystal offers power to one of your creatures."
+
+			_add_event_choice_button("Attack +1", func(): _show_event_targets("crystal_attack"))
+			_add_event_choice_button("Health +2", func(): _show_event_targets("crystal_health"))
+			_add_event_choice_button("XP +1", func(): _show_event_targets("crystal_xp"))
+
+		"event_strange_totem":
+			event_title_label.text = "Strange Totem"
+			event_body_label.text = "The totem whispers of instinct and sacrifice."
+
+			_add_event_choice_button("Draft 1 of 3", func(): _show_totem_draft())
+			_add_event_choice_button("Gain 2 Gold", func():
+				GameState.gold += 2
+				add_log("The totem grants 2 gold.")
+				_finish_event()
+			)
+			_add_event_choice_button("Random Instinct", func():
+				var instinct := GameState.add_random_instinct_reward_to_hand()
+				if instinct.is_empty():
+					add_log("The totem fizzles.")
+				else:
+					add_log("You gained %s." % String(instinct.get("name", "Instinct")))
+				_finish_event()
+			)
+
+		"event_ancient_camp":
+			event_title_label.text = "Ancient Camp"
+			event_body_label.text = "The camp still holds warmth, tools, and old training notes."
+
+			_add_event_choice_button("Full Heal", func():
+				GameState.heal_all_board_monsters_full()
+				add_log("Your team rests and recovers.")
+				_finish_event()
+			)
+			_add_event_choice_button("Gain +1 Slot", func(): _show_event_targets("camp_slot"))
+			_add_event_choice_button("Gain +2 XP", func(): _show_event_targets("camp_xp"))
+
+	refresh_ui()
+
+func _add_event_choice_button(text: String, callable_fn: Callable) -> void:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(180, 90)
+	btn.pressed.connect(callable_fn)
+	event_choices_row.add_child(btn)
+
+
+func _show_event_targets(mode: String) -> void:
+	active_event_mode = mode
+
+	for c in event_targets_row.get_children():
+		c.queue_free()
+
+	var entries := GameState.get_board_monster_entries()
+	for entry in entries:
+		var slot_index: int = int(entry.get("slot_index", -1))
+		var monster: MonsterData = entry.get("monster")
+		if monster == null:
+			continue
+
+		var btn := Button.new()
+		btn.text = "%s Lv.%d" % [monster.display_name, monster.level]
+		btn.custom_minimum_size = Vector2(170, 70)
+		btn.pressed.connect(func(): _apply_event_target_choice(slot_index))
+		event_targets_row.add_child(btn)
+
+
+func _apply_event_target_choice(slot_index: int) -> void:
+	var monster: MonsterData = GameState.board_monsters[slot_index]
+	if monster == null:
+		return
+
+	match active_event_mode:
+		"crystal_attack":
+			GameState.grant_board_monster_attack(slot_index, 1)
+			add_log("%s gained +1 attack." % monster.display_name)
+
+		"crystal_health":
+			GameState.grant_board_monster_health(slot_index, 2)
+			add_log("%s gained +2 max health." % monster.display_name)
+
+		"crystal_xp":
+			GameState.grant_monster_xp(monster, 1)
+			add_log("%s gained 1 XP." % monster.display_name)
+
+		"camp_slot":
+			if GameState.grant_board_monster_slot(slot_index, 1):
+				add_log("%s gained +1 upgrade slot." % monster.display_name)
+
+		"camp_xp":
+			GameState.grant_monster_xp(monster, 2)
+			add_log("%s gained 2 XP." % monster.display_name)
+
+	_finish_event()
+
+
+func _show_totem_draft() -> void:
+	for c in event_choices_row.get_children():
+		c.queue_free()
+	for c in event_targets_row.get_children():
+		c.queue_free()
+
+	var picks: Array = GameState.build_instinct_reward_choices(3)
+
+	for instinct in picks:
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(220, 110)
+		btn.text = "%s\n%s" % [
+			String(instinct.get("name", "Instinct")),
+			String(instinct.get("description", ""))
+		]
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.pressed.connect(func():
+			GameState.add_instinct_reward_to_hand(instinct)
+			add_log("You gained %s." % String(instinct.get("name", "Instinct")))
+			_finish_event()
+		)
+		event_choices_row.add_child(btn)
+
+
+func _finish_event() -> void:
+	event_overlay.visible = false
+	start_btn.disabled = false
+	reroll_btn.disabled = false
+
+	active_event_id = ""
+	active_event_mode = ""
+
+	GameState.current_encounter_index += 1
+	refresh_ui()
+func _set_event_background(encounter_id: String) -> void:
+	match encounter_id:
+		"event_crystal_infusion":
+			event_background.texture = load("res://assets/cave/cave6.png")
+		"event_strange_totem":
+			event_background.texture = load("res://assets/cave/cave4.png")
+		"event_ancient_camp":
+			event_background.texture = load("res://assets/cave/cave5.png")
+		_:
+			event_background.texture = null

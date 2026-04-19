@@ -199,11 +199,15 @@ func build_first_test_run() -> void:
 	run_encounters = [
 		"cave_1",
 		"cave_2",
+		"event_crystal_infusion",
 		"cave_3",
+		"event_strange_totem",
 		"cave_elite_1",
+		"event_ancient_camp",
 		"cave_4",
 		"cave_boss_1",
 	]
+	current_encounter_index = 0
 	current_encounter_index = 0
 func get_current_encounter_id() -> String:
 	if current_encounter_index < 0 or current_encounter_index >= run_encounters.size():
@@ -1013,3 +1017,74 @@ func can_add_instinct(monster: MonsterData, instinct: Dictionary) -> bool:
 			return false
 
 	return true
+func is_event_encounter(encounter_id: String) -> bool:
+	return encounter_id.begins_with("event_")
+
+
+func get_board_monster_entries() -> Array:
+	var entries: Array = []
+
+	for i in range(min(board_monsters.size(), max_board_slots)):
+		var monster: MonsterData = board_monsters[i]
+		if monster != null:
+			entries.append({
+				"slot_index": i,
+				"monster": monster
+			})
+
+	return entries
+
+
+func heal_all_board_monsters_full() -> void:
+	for i in range(min(board_monsters.size(), max_board_slots)):
+		var monster: MonsterData = board_monsters[i]
+		if monster == null:
+			continue
+		monster.health = monster.max_health
+
+
+func grant_board_monster_slot(slot_index: int, amount: int = 1) -> bool:
+	if slot_index < 0 or slot_index >= board_monsters.size():
+		return false
+
+	var monster: MonsterData = board_monsters[slot_index]
+	if monster == null:
+		return false
+
+	monster.modifier_slots = min(3, monster.modifier_slots + amount)
+	return true
+
+
+func grant_board_monster_attack(slot_index: int, amount: int = 1) -> bool:
+	if slot_index < 0 or slot_index >= board_monsters.size():
+		return false
+
+	var monster: MonsterData = board_monsters[slot_index]
+	if monster == null:
+		return false
+
+	monster.attack += amount
+	return true
+
+
+func grant_board_monster_health(slot_index: int, amount: int = 2) -> bool:
+	if slot_index < 0 or slot_index >= board_monsters.size():
+		return false
+
+	var monster: MonsterData = board_monsters[slot_index]
+	if monster == null:
+		return false
+
+	monster.max_health += amount
+	monster.health = min(monster.max_health, monster.health + amount)
+	return true
+
+
+func add_random_instinct_reward_to_hand() -> Dictionary:
+	var picks: Array = build_instinct_reward_choices(1)
+	if picks.is_empty():
+		return {}
+
+	var instinct: Dictionary = picks[0]
+	add_instinct_reward_to_hand(instinct)
+	return instinct

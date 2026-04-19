@@ -16,7 +16,6 @@ func setup(item: ItemData, p_source_type: String = "", p_source_index: int = -1)
 	source_type = p_source_type
 	source_index = p_source_index
 
-	# If UI already exists, update it immediately
 	if is_node_ready():
 		_refresh_ui()
 
@@ -30,7 +29,6 @@ func _ready() -> void:
 	_refresh_ui()
 
 func _build_ui() -> void:
-	# Clear any existing children just in case
 	for child in get_children():
 		child.queue_free()
 
@@ -96,7 +94,7 @@ func _refresh_ui() -> void:
 
 	name_label.text = item_data.display_name
 	description_label.text = item_data.description
-	cost_label.text = "Cost: %d" % item_data.cost
+	cost_label.text = ""
 
 func _get_drag_data(_at_position: Vector2):
 	if source_type != "hand":
@@ -110,7 +108,7 @@ func _get_drag_data(_at_position: Vector2):
 	preview_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var preview_card := _build_drag_preview()
-	preview_card.position = Vector2(-75, -90) # centers 150x180 card on cursor
+	preview_card.position = Vector2(-75, -90)
 
 	preview_root.add_child(preview_card)
 	set_drag_preview(preview_root)
@@ -121,10 +119,12 @@ func _get_drag_data(_at_position: Vector2):
 		"card_type": "instinct",
 		"item": item_data
 	}
+
 func _notification(what):
 	if what == NOTIFICATION_DRAG_END:
 		if is_instance_valid(GameState.sell_strip_ref):
 			GameState.sell_strip_ref.disable_drop_zone()
+
 func _build_drag_preview() -> Control:
 	var root := PanelContainer.new()
 	root.custom_minimum_size = Vector2(150, 180)
@@ -172,12 +172,5 @@ func _build_drag_preview() -> Control:
 	preview_description.add_theme_font_size_override("font_size", 15)
 	preview_description.text = item_data.description
 	vbox.add_child(preview_description)
-
-	var preview_cost := Label.new()
-	preview_cost.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview_cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	preview_cost.add_theme_font_size_override("font_size", 16)
-	preview_cost.text = "Cost: %d" % item_data.cost
-	vbox.add_child(preview_cost)
 
 	return root

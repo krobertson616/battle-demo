@@ -184,6 +184,7 @@ func _get_drag_data(_at_position: Vector2):
 		return null
 
 	if is_instance_valid(GameState.sell_strip_ref):
+		print("MONSTER DRAG START:", source_type, source_index, GameState.sell_strip_ref)
 		GameState.sell_strip_ref.enable_drop_zone()
 
 	var preview_root := Control.new()
