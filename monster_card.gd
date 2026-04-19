@@ -96,7 +96,7 @@ func _apply_data() -> void:
 	health_label.modulate = Color(1, 1, 1, 1)
 	slash_label.modulate = Color(1, 1, 1, 1)
 
-	if level >= 6:
+	if level >= 12:
 		xp_bar.visible = true
 		xp_bar.min_value = 0
 		xp_bar.max_value = 1

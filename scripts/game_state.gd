@@ -52,28 +52,29 @@ func _build_monster_pools() -> void:
 
 	all_monsters = [
 		# Existing base roster
-		_make("wolf", "Sheni", "Fang", 1, 2, 3, "alpha_wolf"),
-		_make("imp", "Imp", "Ember", 1, 99, 99, "fireling"),
-		_make("slime", "Slime", "Slime", 1, 2, 2, "superslime"),
-		_make("golem", "Pebble", "Stone", 1, 1, 5, "stone_guardian"),
+# Base roster
+_make("wolf", "Sheni", "Fang", 1, 2, 5, "alpha_wolf"),
+_make("imp", "Imp", "Ember", 1, 3, 4, "fireling"),
+_make("slime", "Slime", "Slime", 1, 1, 5, "superslime"),
+_make("golem", "Pebble", "Stone", 1, 1, 8, "stone_guardian"),
 
-		# Existing evolutions
-		_make("alpha_wolf", "Shen-Zi", "Fang", 3, 3, 3, "none"),
-		_make("fireling", "Fireling", "Ember", 2, 2, 2, "none"),
-		_make("superslime", "King Slime", "Slime", 1, 1, 3, "none"),
-		_make("stone_guardian", "Guardian", "Stone", 3, 2, 7, "none"),
+# Evolutions
+_make("alpha_wolf", "Shen-Zi", "Fang", 3, 4, 7, "none"),
+_make("fireling", "Fireling", "Ember", 2, 4, 5, "none"),
+_make("superslime", "King Slime", "Slime", 1, 2, 8, "none"),
+_make("stone_guardian", "Guardian", "Stone", 3, 2, 11, "none"),
 
-		# New base shop creatures
-		_make("mossmender", "Mossmender", "Grove", 1, 1, 4, "elder_mossmender"),
-		_make("fang_adder", "Fang Adder", "Venom", 1, 2, 3, "venom_maw"),
-		_make("razor_mite", "Razor Mite", "Skitter", 1, 1, 3, "razor_horror"),
-		_make("frost_wisp", "Frost Wisp", "Frost", 1, 1, 4, "icebound_seer"),
+# New base shop creatures
+_make("mossmender", "Mossmender", "Grove", 1, 1, 6, "elder_mossmender"),
+_make("fang_adder", "Fang Adder", "Venom", 1, 2, 5, "venom_maw"),
+_make("razor_mite", "Razor Mite", "Skitter", 1, 1, 4, "razor_horror"),
+_make("frost_wisp", "Frost Wisp", "Frost", 1, 1, 6, "icebound_seer"),
 
-		# New evolutions
-		_make("elder_mossmender", "Elder Mossmender", "Grove", 4, 2, 6, "none"),
-		_make("venom_maw", "Venom Maw", "Venom", 4, 3, 5, "none"),
-		_make("razor_horror", "Razor Horror", "Skitter", 4, 2, 4, "none"),
-		_make("icebound_seer", "Icebound Seer", "Frost", 4, 2, 5, "none"),
+# New evolutions
+_make("elder_mossmender", "Elder Mossmender", "Grove", 4, 2, 9, "none"),
+_make("venom_maw", "Venom Maw", "Venom", 4, 3, 7, "none"),
+_make("razor_horror", "Razor Horror", "Skitter", 4, 2, 6, "none"),
+_make("icebound_seer", "Icebound Seer", "Frost", 4, 2, 8, "none"),
 	]
 
 	shop_pool = [
@@ -663,7 +664,7 @@ func create_enemy(type: String) -> Dictionary:
 				"display_name": "Slime",
 				"attack": 1,
 				"health": 6,
-				"max_health": 3,
+				"max_health": 6,
 				"tribe": "Slime",
 				"modifiers": [],
 				"equipped_modifiers": [],
@@ -676,8 +677,8 @@ func create_enemy(type: String) -> Dictionary:
 				"id": "bat",
 				"display_name": "Bat",
 				"attack": 2,
-				"health": 6,
-				"max_health": 2,
+				"health": 4,
+				"max_health": 4,
 				"tribe": "Beast",
 				"modifiers": [],
 				"equipped_modifiers": [],
@@ -690,8 +691,8 @@ func create_enemy(type: String) -> Dictionary:
 				"id": "tank",
 				"display_name": "Stone Guard",
 				"attack": 2,
-				"health": 12,
-				"max_health": 12,
+				"health": 14,
+				"max_health": 14,
 				"tribe": "Construct",
 				"modifiers": ["taunt"],
 				"equipped_modifiers": [],
@@ -703,9 +704,9 @@ func create_enemy(type: String) -> Dictionary:
 			return {
 				"id": "boss",
 				"display_name": "Cave Brute",
-				"attack": 3,
-				"health": 30,
-				"max_health": 30,
+				"attack": 4,
+				"health": 24,
+				"max_health": 24,
 				"tribe": "Beast",
 				"modifiers": [],
 				"equipped_modifiers": [],
@@ -714,7 +715,6 @@ func create_enemy(type: String) -> Dictionary:
 			}
 
 	return {}
-	
 func build_dummy_enemy_team() -> Array:
 	var team: Array = []
 
@@ -755,6 +755,18 @@ func get_xp_needed_for_next_level(current_level: int) -> int:
 			return 5
 		5:
 			return 6
+		6:
+			return 7
+		7:
+			return 8
+		8:
+			return 9
+		9:
+			return 10
+		10:
+			return 11
+		11:
+			return 12
 		_:
 			return 999
 
@@ -764,7 +776,7 @@ func grant_monster_xp(monster: MonsterData, amount: int) -> void:
 
 	monster.xp += amount
 
-	while monster.level < 6:
+	while monster.level < 12:
 		var needed := get_xp_needed_for_next_level(monster.level)
 		if monster.xp < needed:
 			break
@@ -885,7 +897,7 @@ func start_new_run_from_map(location_id: String) -> void:
 		_:
 			selected_location_label = location_id.capitalize()
 
-	gold = 99
+	gold = 3
 	health = 10
 	round_num = 1
 	max_board_slots = 3
@@ -967,9 +979,14 @@ func add_instinct_reward_to_hand(instinct: Dictionary) -> void:
 		"item": item
 	})
 func get_upgrade_slot_count_for_level(level: int) -> int:
-	var safe_level: int = max(1, level)
-	return min(3, 1 + int((safe_level - 1) / 5))
+	var safe_level: int = int(max(1, level))
 
+	if safe_level >= 10:
+		return 3
+	elif safe_level >= 5:
+		return 2
+	else:
+		return 1
 
 func get_used_upgrade_slots(monster: MonsterData) -> int:
 	if monster == null:
