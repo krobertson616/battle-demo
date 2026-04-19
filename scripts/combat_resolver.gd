@@ -278,9 +278,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				break
 
 			var p: Dictionary = p_units[p_attacker_index]
-			var p_target_index: int = _get_target_index(p, e_units)
-			if p_target_index == -1:
-				break
 
 			if _has_modifier(p, "regenerate"):
 				var old_regen_hp: int = int(p["health"])
@@ -290,7 +287,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			if _has_modifier(p, "burning"):
 				var burn_damage: int = 1
-
 				if _has_modifier(p, "greased"):
 					burn_damage += 1
 					log_lines.append("%s is greased and takes extra burn damage" % p["name"])
@@ -326,7 +322,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			if _has_modifier(p, "poisoned"):
 				var poison_damage: int = 1
-
 				p["health"] = max(0, int(p["health"]) - poison_damage)
 				log_lines.append("%s takes %d poison damage" % [p["name"], poison_damage])
 
@@ -355,6 +350,7 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 					player_turn = false
 					continue
+
 			if _has_modifier(p, "frozen"):
 				if p.has("modifiers"):
 					p["modifiers"].erase("frozen")
@@ -368,7 +364,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_index": p_attacker_index,
 					"status": "frozen"
 				})
-
 				events.append({
 					"type": "skip_turn",
 					"side": "player",
@@ -377,40 +372,10 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"reason": "frozen"
 				})
 
-				if not p_units.is_empty():
-					var next_p_index: int = p_attacker_index + 1
-					if next_p_index >= p_units.size():
-						next_p_index = 0
-					p_turn_index = next_p_index
-
-				player_turn = false
-				continue
-			var p_target: Dictionary = e_units[p_target_index]
-			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
-			events.append({
-				"type": "attack",
-				"attacker_side": "player",
-				"attacker_name": p["name"],
-				"attacker_index": p_attacker_index,
-				"target_side": "enemy",
-				"target_name": p_target["name"],
-				"target_index": p_target_index
-			})
-
-			if _roll_greased_miss(p):
-				log_lines.append("%s slips and misses!" % p["name"])
-				events.append({
-					"type": "miss",
-					"target_side": "enemy",
-					"target_name": p_target["name"],
-					"target_index": p_target_index
-				})
-
-				if not p_units.is_empty():
-					var next_p_index: int = p_attacker_index + 1
-					if next_p_index >= p_units.size():
-						next_p_index = 0
-					p_turn_index = next_p_index
+				var skipped_next_p: int = p_attacker_index + 1
+				if skipped_next_p >= p_units.size():
+					skipped_next_p = 0
+				p_turn_index = skipped_next_p
 
 				player_turn = false
 				continue
@@ -419,100 +384,125 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			if p_attack_penalty > 0:
 				log_lines.append("%s is weakened by poison (-1 attack)" % p["name"])
 
-			var damage_to_enemy: int = max(1, int(p["attack"]) - p_attack_penalty)
-			var original_damage_to_enemy: int = damage_to_enemy
-			var enemy_reduction: int = _get_damage_reduction(p_target)
+			var p_swings: int = 2 if _has_modifier(p, "windfury") else 1
 
-			damage_to_enemy = max(1, damage_to_enemy - enemy_reduction)
+			while p_swings > 0 and not e_units.is_empty():
+				var p_target_index: int = _get_target_index(p, e_units)
+				if p_target_index == -1:
+					break
 
-			var enemy_blocked: int = original_damage_to_enemy - damage_to_enemy
-			var enemy_soaked: bool = enemy_blocked > 0
+				var p_target: Dictionary = e_units[p_target_index]
 
-			if enemy_soaked:
-				log_lines.append("%s's Thick Hide reduces damage by %d" % [p_target["name"], enemy_blocked])
-
-			p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
-
-			if _has_modifier(p, "burn") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "burning"):
-				if not p_target.has("modifiers"):
-					p_target["modifiers"] = []
-
-				p_target["modifiers"].append("burning")
-				log_lines.append("%s sets %s on fire" % [p["name"], p_target["name"]])
-
+				log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
 				events.append({
-					"type": "status_applied",
+					"type": "attack",
+					"attacker_side": "player",
+					"attacker_name": p["name"],
+					"attacker_index": p_attacker_index,
 					"target_side": "enemy",
 					"target_name": p_target["name"],
-					"target_index": p_target_index,
-					"status": "burning"
+					"target_index": p_target_index
 				})
 
-			if _has_modifier(p, "poison") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "poisoned"):
-				if not p_target.has("modifiers"):
-					p_target["modifiers"] = []
-
-				p_target["modifiers"].append("poisoned")
-				log_lines.append("%s poisons %s" % [p["name"], p_target["name"]])
-
-				events.append({
-					"type": "status_applied",
-					"target_side": "enemy",
-					"target_name": p_target["name"],
-					"target_index": p_target_index,
-					"status": "poisoned"
-				})
-			if _has_modifier(p, "freeze") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "frozen"):
-				if not p_target.has("modifiers"):
-					p_target["modifiers"] = []
-
-				p_target["modifiers"].append("frozen")
-				log_lines.append("%s freezes %s" % [p["name"], p_target["name"]])
-
-				events.append({
-					"type": "status_applied",
-					"target_side": "enemy",
-					"target_name": p_target["name"],
-					"target_index": p_target_index,
-					"status": "frozen"
-				})
-			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
-				if not p_target.has("modifiers"):
-					p_target["modifiers"] = []
-
-				p_target["modifiers"].append("greased")
-				log_lines.append("%s coats %s in oil" % [p["name"], p_target["name"]])
-
-				events.append({
-					"type": "status_applied",
-					"target_side": "enemy",
-					"target_name": p_target["name"],
-					"target_index": p_target_index,
-					"status": "greased"
-				})
-
-			log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
-			events.append({
-				"type": "damage",
-				"target_side": "enemy",
-				"target_name": p_target["name"],
-				"target_index": p_target_index,
-				"amount": damage_to_enemy,
-				"remaining_hp": p_target["health"],
-				"soaked": enemy_soaked,
-				"reduced_by": enemy_blocked
-			})
-
-			for i in range(e_units.size() - 1, -1, -1):
-				if int(e_units[i]["health"]) <= 0:
-					log_lines.append("%s dies" % e_units[i]["name"])
+				if _roll_greased_miss(p):
+					log_lines.append("%s slips and misses!" % p["name"])
 					events.append({
-						"type": "death",
-						"side": "enemy",
-						"name": e_units[i]["name"],
-						"target_index": i
+						"type": "miss",
+						"target_side": "enemy",
+						"target_name": p_target["name"],
+						"target_index": p_target_index
 					})
-					e_units.remove_at(i)
+				else:
+					var damage_to_enemy: int = max(1, int(p["attack"]) - p_attack_penalty)
+					var original_damage_to_enemy: int = damage_to_enemy
+					var enemy_reduction: int = _get_damage_reduction(p_target)
+
+					damage_to_enemy = max(1, damage_to_enemy - enemy_reduction)
+
+					var enemy_blocked: int = original_damage_to_enemy - damage_to_enemy
+					var enemy_soaked: bool = enemy_blocked > 0
+
+					if enemy_soaked:
+						log_lines.append("%s's Thick Hide reduces damage by %d" % [p_target["name"], enemy_blocked])
+
+					p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
+
+					if _has_modifier(p, "burn") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "burning"):
+						if not p_target.has("modifiers"):
+							p_target["modifiers"] = []
+						p_target["modifiers"].append("burning")
+						log_lines.append("%s sets %s on fire" % [p["name"], p_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "enemy",
+							"target_name": p_target["name"],
+							"target_index": p_target_index,
+							"status": "burning"
+						})
+
+					if _has_modifier(p, "poison") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "poisoned"):
+						if not p_target.has("modifiers"):
+							p_target["modifiers"] = []
+						p_target["modifiers"].append("poisoned")
+						log_lines.append("%s poisons %s" % [p["name"], p_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "enemy",
+							"target_name": p_target["name"],
+							"target_index": p_target_index,
+							"status": "poisoned"
+						})
+
+					if _has_modifier(p, "freeze") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "frozen"):
+						if not p_target.has("modifiers"):
+							p_target["modifiers"] = []
+						p_target["modifiers"].append("frozen")
+						log_lines.append("%s freezes %s" % [p["name"], p_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "enemy",
+							"target_name": p_target["name"],
+							"target_index": p_target_index,
+							"status": "frozen"
+						})
+
+					if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
+						if not p_target.has("modifiers"):
+							p_target["modifiers"] = []
+						p_target["modifiers"].append("greased")
+						log_lines.append("%s coats %s in oil" % [p["name"], p_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "enemy",
+							"target_name": p_target["name"],
+							"target_index": p_target_index,
+							"status": "greased"
+						})
+
+					log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
+					events.append({
+						"type": "damage",
+						"target_side": "enemy",
+						"target_name": p_target["name"],
+						"target_index": p_target_index,
+						"amount": damage_to_enemy,
+						"remaining_hp": p_target["health"],
+						"soaked": enemy_soaked,
+						"reduced_by": enemy_blocked
+					})
+
+					for i in range(e_units.size() - 1, -1, -1):
+						if int(e_units[i]["health"]) <= 0:
+							log_lines.append("%s dies" % e_units[i]["name"])
+							events.append({
+								"type": "death",
+								"side": "enemy",
+								"name": e_units[i]["name"],
+								"target_index": i
+							})
+							e_units.remove_at(i)
+
+				p_swings -= 1
 
 			if _has_modifier(p, "heal"):
 				var heal_target_index: int = _get_most_injured_living_index(p_units)
@@ -548,9 +538,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				break
 
 			var e: Dictionary = e_units[e_attacker_index]
-			var e_target_index: int = _get_target_index(e, p_units)
-			if e_target_index == -1:
-				break
 
 			if _has_modifier(e, "regenerate"):
 				var old_regen_hp: int = int(e["health"])
@@ -560,7 +547,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			if _has_modifier(e, "burning"):
 				var burn_damage: int = 1
-
 				if _has_modifier(e, "greased"):
 					burn_damage += 1
 					log_lines.append("%s is greased and takes extra burn damage" % e["name"])
@@ -596,7 +582,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			if _has_modifier(e, "poisoned"):
 				var poison_damage: int = 1
-
 				e["health"] = max(0, int(e["health"]) - poison_damage)
 				log_lines.append("%s takes %d poison damage" % [e["name"], poison_damage])
 
@@ -625,6 +610,7 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 					player_turn = true
 					continue
+
 			if _has_modifier(e, "frozen"):
 				if e.has("modifiers"):
 					e["modifiers"].erase("frozen")
@@ -638,7 +624,6 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_index": e_attacker_index,
 					"status": "frozen"
 				})
-
 				events.append({
 					"type": "skip_turn",
 					"side": "enemy",
@@ -647,40 +632,10 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"reason": "frozen"
 				})
 
-				if not e_units.is_empty():
-					var next_e_index: int = e_attacker_index + 1
-					if next_e_index >= e_units.size():
-						next_e_index = 0
-					e_turn_index = next_e_index
-
-				player_turn = true
-				continue
-			var e_target: Dictionary = p_units[e_target_index]
-			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
-			events.append({
-				"type": "attack",
-				"attacker_side": "enemy",
-				"attacker_name": e["name"],
-				"attacker_index": e_attacker_index,
-				"target_side": "player",
-				"target_name": e_target["name"],
-				"target_index": e_target_index
-			})
-
-			if _roll_greased_miss(e):
-				log_lines.append("%s slips and misses!" % e["name"])
-				events.append({
-					"type": "miss",
-					"target_side": "player",
-					"target_name": e_target["name"],
-					"target_index": e_target_index
-				})
-
-				if not e_units.is_empty():
-					var next_e_index: int = e_attacker_index + 1
-					if next_e_index >= e_units.size():
-						next_e_index = 0
-					e_turn_index = next_e_index
+				var skipped_next_e: int = e_attacker_index + 1
+				if skipped_next_e >= e_units.size():
+					skipped_next_e = 0
+				e_turn_index = skipped_next_e
 
 				player_turn = true
 				continue
@@ -689,100 +644,125 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			if e_attack_penalty > 0:
 				log_lines.append("%s is weakened by poison (-1 attack)" % e["name"])
 
-			var damage_to_player: int = max(1, int(e["attack"]) - e_attack_penalty)
-			var original_damage_to_player: int = damage_to_player
-			var player_reduction: int = _get_damage_reduction(e_target)
+			var e_swings: int = 2 if _has_modifier(e, "windfury") else 1
 
-			damage_to_player = max(1, damage_to_player - player_reduction)
+			while e_swings > 0 and not p_units.is_empty():
+				var e_target_index: int = _get_target_index(e, p_units)
+				if e_target_index == -1:
+					break
 
-			var player_blocked: int = original_damage_to_player - damage_to_player
-			var player_soaked: bool = player_blocked > 0
+				var e_target: Dictionary = p_units[e_target_index]
 
-			if player_soaked:
-				log_lines.append("%s's Thick Hide reduces damage by %d" % [e_target["name"], player_blocked])
-
-			e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
-
-			if _has_modifier(e, "burn") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "burning"):
-				if not e_target.has("modifiers"):
-					e_target["modifiers"] = []
-
-				e_target["modifiers"].append("burning")
-				log_lines.append("%s sets %s on fire" % [e["name"], e_target["name"]])
-
+				log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
 				events.append({
-					"type": "status_applied",
+					"type": "attack",
+					"attacker_side": "enemy",
+					"attacker_name": e["name"],
+					"attacker_index": e_attacker_index,
 					"target_side": "player",
 					"target_name": e_target["name"],
-					"target_index": e_target_index,
-					"status": "burning"
+					"target_index": e_target_index
 				})
 
-			if _has_modifier(e, "poison") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "poisoned"):
-				if not e_target.has("modifiers"):
-					e_target["modifiers"] = []
-
-				e_target["modifiers"].append("poisoned")
-				log_lines.append("%s poisons %s" % [e["name"], e_target["name"]])
-
-				events.append({
-					"type": "status_applied",
-					"target_side": "player",
-					"target_name": e_target["name"],
-					"target_index": e_target_index,
-					"status": "poisoned"
-				})
-			if _has_modifier(e, "freeze") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "frozen"):
-				if not e_target.has("modifiers"):
-					e_target["modifiers"] = []
-
-				e_target["modifiers"].append("frozen")
-				log_lines.append("%s freezes %s" % [e["name"], e_target["name"]])
-
-				events.append({
-					"type": "status_applied",
-					"target_side": "player",
-					"target_name": e_target["name"],
-					"target_index": e_target_index,
-					"status": "frozen"
-				})
-			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
-				if not e_target.has("modifiers"):
-					e_target["modifiers"] = []
-
-				e_target["modifiers"].append("greased")
-				log_lines.append("%s coats %s in oil" % [e["name"], e_target["name"]])
-
-				events.append({
-					"type": "status_applied",
-					"target_side": "player",
-					"target_name": e_target["name"],
-					"target_index": e_target_index,
-					"status": "greased"
-				})
-
-			log_lines.append("%s takes %d damage" % [e_target["name"], damage_to_player])
-			events.append({
-				"type": "damage",
-				"target_side": "player",
-				"target_name": e_target["name"],
-				"target_index": e_target_index,
-				"amount": damage_to_player,
-				"remaining_hp": e_target["health"],
-				"soaked": player_soaked,
-				"reduced_by": player_blocked
-			})
-
-			for i in range(p_units.size() - 1, -1, -1):
-				if int(p_units[i]["health"]) <= 0:
-					log_lines.append("%s dies" % p_units[i]["name"])
+				if _roll_greased_miss(e):
+					log_lines.append("%s slips and misses!" % e["name"])
 					events.append({
-						"type": "death",
-						"side": "player",
-						"name": p_units[i]["name"],
-						"target_index": i
+						"type": "miss",
+						"target_side": "player",
+						"target_name": e_target["name"],
+						"target_index": e_target_index
 					})
-					p_units.remove_at(i)
+				else:
+					var damage_to_player: int = max(1, int(e["attack"]) - e_attack_penalty)
+					var original_damage_to_player: int = damage_to_player
+					var player_reduction: int = _get_damage_reduction(e_target)
+
+					damage_to_player = max(1, damage_to_player - player_reduction)
+
+					var player_blocked: int = original_damage_to_player - damage_to_player
+					var player_soaked: bool = player_blocked > 0
+
+					if player_soaked:
+						log_lines.append("%s's Thick Hide reduces damage by %d" % [e_target["name"], player_blocked])
+
+					e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
+
+					if _has_modifier(e, "burn") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "burning"):
+						if not e_target.has("modifiers"):
+							e_target["modifiers"] = []
+						e_target["modifiers"].append("burning")
+						log_lines.append("%s sets %s on fire" % [e["name"], e_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "player",
+							"target_name": e_target["name"],
+							"target_index": e_target_index,
+							"status": "burning"
+						})
+
+					if _has_modifier(e, "poison") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "poisoned"):
+						if not e_target.has("modifiers"):
+							e_target["modifiers"] = []
+						e_target["modifiers"].append("poisoned")
+						log_lines.append("%s poisons %s" % [e["name"], e_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "player",
+							"target_name": e_target["name"],
+							"target_index": e_target_index,
+							"status": "poisoned"
+						})
+
+					if _has_modifier(e, "freeze") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "frozen"):
+						if not e_target.has("modifiers"):
+							e_target["modifiers"] = []
+						e_target["modifiers"].append("frozen")
+						log_lines.append("%s freezes %s" % [e["name"], e_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "player",
+							"target_name": e_target["name"],
+							"target_index": e_target_index,
+							"status": "frozen"
+						})
+
+					if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
+						if not e_target.has("modifiers"):
+							e_target["modifiers"] = []
+						e_target["modifiers"].append("greased")
+						log_lines.append("%s coats %s in oil" % [e["name"], e_target["name"]])
+						events.append({
+							"type": "status_applied",
+							"target_side": "player",
+							"target_name": e_target["name"],
+							"target_index": e_target_index,
+							"status": "greased"
+						})
+
+					log_lines.append("%s takes %d damage" % [e_target["name"], damage_to_player])
+					events.append({
+						"type": "damage",
+						"target_side": "player",
+						"target_name": e_target["name"],
+						"target_index": e_target_index,
+						"amount": damage_to_player,
+						"remaining_hp": e_target["health"],
+						"soaked": player_soaked,
+						"reduced_by": player_blocked
+					})
+
+					for i in range(p_units.size() - 1, -1, -1):
+						if int(p_units[i]["health"]) <= 0:
+							log_lines.append("%s dies" % p_units[i]["name"])
+							events.append({
+								"type": "death",
+								"side": "player",
+								"name": p_units[i]["name"],
+								"target_index": i
+							})
+							p_units.remove_at(i)
+
+				e_swings -= 1
 
 			if _has_modifier(e, "heal"):
 				var heal_target_index: int = _get_most_injured_living_index(e_units)

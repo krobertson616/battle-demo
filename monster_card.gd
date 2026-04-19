@@ -226,6 +226,8 @@ func _update_modifier_label() -> void:
 			"freeze": parts.append("FREEZE")
 			"frozen": pass
 			"poison": parts.append("POISON")
+			"windfury":
+				parts.append("WINDFURY")
 			"poisoned": pass
 			"greased":
 				pass
