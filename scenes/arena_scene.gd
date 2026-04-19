@@ -6,14 +6,18 @@ extends Control
 @onready var combat_log: RichTextLabel = $MarginContainer/VBoxContainer/CombatLog
 @onready var continue_button: Button = $MarginContainer/VBoxContainer/ContinueButton
 @onready var background = $BackgroundTexture
-
+@onready var reward_overlay: CenterContainer = $RewardOverlay
+@onready var reward_panel: PanelContainer = $RewardOverlay/RewardPanel
+@onready var reward_title: Label = $RewardOverlay/RewardPanel/RewardVBox/RewardTitle
+@onready var xp_gain_label: Label = $RewardOverlay/RewardPanel/RewardVBox/XpGainLabel
+@onready var reward_choices_row: HBoxContainer = $RewardOverlay/RewardPanel/RewardVBox/RewardChoiceRow
 var monster_card_scene = preload("res://scenes/monster_card.tscn")
 
 var visual_enemy_team: Array = []
 var visual_player_team: Array = []
 
 const CARD_WIDTH := 150
-const CARD_HEIGHT := 180
+const CARD_HEIGHT := 250
 
 const ATTACK_ANIM_TIME := 0.28
 const HIT_ANIM_TIME := 0.18
@@ -26,6 +30,7 @@ func _ready() -> void:
 	#print("ARENA selected_location =", GameState.selected_location)
 	#print("ARENA active_node_type =", GameState.active_node_type)
 	_set_background()
+	reward_overlay.visible = false
 	#print("Entered arena scene")
 	#print("Pending player team size:", GameState.pending_player_team.size())
 	#print("Pending enemy team size:", GameState.pending_enemy_team.size())
@@ -95,20 +100,18 @@ func _run_combat() -> void:
 		GameState.pending_enemy_team
 	)
 
-	#print("DEBUG arena result = ", GameState.pending_result)
-
 	combat_log.clear()
 	result_label.text = ""
 
 	await _play_combat_events(GameState.pending_result.get("events", []))
+	_persist_player_combat_bonuses()
 
 	if GameState.pending_result.get("player_won", false):
 		result_label.text = "Victory!"
+		await _show_post_combat_rewards()
 	else:
 		result_label.text = "Defeat!"
-
-	continue_button.disabled = false
-
+		continue_button.disabled = false
 func _play_combat_events(events: Array) -> void:
 	for event in events:
 		var event_type: String = str(event.get("type", ""))
@@ -204,6 +207,25 @@ func _play_combat_events(events: Array) -> void:
 				_show_floating_heal(target_side, target_index, amount)
 				_render_teams()
 				await get_tree().create_timer(0.25).timeout
+			"attack_changed":
+				var target_side: String = str(event.get("target_side", ""))
+				var target_name: String = str(event.get("target_name", ""))
+				var target_index: int = int(event.get("target_index", -1))
+				var amount: int = int(event.get("amount", 0))
+				var new_attack: int = int(event.get("new_attack", 0))
+				var reason: String = str(event.get("reason", ""))
+
+				combat_log.append_text("%s gains +%d attack from %s\n" % [target_name, amount, reason])
+
+				if target_side == "enemy":
+					if target_index >= 0 and target_index < visual_enemy_team.size():
+						visual_enemy_team[target_index].attack = new_attack
+				elif target_side == "player":
+					if target_index >= 0 and target_index < visual_player_team.size():
+						visual_player_team[target_index].attack = new_attack
+
+				_render_teams()
+				await get_tree().create_timer(0.12).timeout
 			"dot_damage":
 				var target_side: String = str(event.get("target_side", ""))
 				var target_name: String = str(event.get("target_name", ""))
@@ -599,3 +621,65 @@ func _show_floating_skip(side: String, index: int, text: String) -> void:
 
 	await tween.finished
 	label.queue_free()
+func _persist_player_combat_bonuses() -> void:
+	var survivors: Array = GameState.pending_result.get("player_survivors", [])
+
+	for survivor in survivors:
+		if typeof(survivor) != TYPE_DICTIONARY:
+			continue
+
+		var slot_index: int = int(survivor.get("slot_index", -1))
+		if slot_index < 0 or slot_index >= GameState.board_monsters.size():
+			continue
+
+		var board_monster = GameState.board_monsters[slot_index]
+		if board_monster == null:
+			continue
+
+		# Persist Blood Rush / Wildfire style permanent combat attack gains
+		board_monster.attack = int(survivor.get("attack", board_monster.attack))
+func _show_post_combat_rewards() -> void:
+	reward_overlay.visible = true
+	reward_panel.visible = true
+	reward_overlay.move_to_front()
+	continue_button.disabled = true
+	reward_title.text = "Choose an Instinct"
+
+	for child in reward_choices_row.get_children():
+		child.queue_free()
+
+	var survivors: Array = GameState.pending_result.get("player_survivors", [])
+	var xp_lines: Array[String] = []
+
+	for survivor in survivors:
+		if typeof(survivor) != TYPE_DICTIONARY:
+			continue
+		xp_lines.append("%s +1 XP" % str(survivor.get("name", "Unit")))
+
+	if xp_lines.is_empty():
+		xp_gain_label.text = "No XP gained."
+	else:
+		xp_gain_label.text = "XP Gain:\n" + "\n".join(xp_lines)
+
+	var choices: Array = GameState.build_instinct_reward_choices(3)
+
+	for instinct in choices:
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(210, 110)
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.text = "%s\n%s" % [
+			str(instinct.get("name", "Instinct")),
+			str(instinct.get("description", ""))
+		]
+
+		button.pressed.connect(func():
+			_take_reward_choice(instinct)
+		)
+
+		reward_choices_row.add_child(button)
+
+func _take_reward_choice(instinct: Dictionary) -> void:
+	GameState.add_instinct_reward_to_hand(instinct)
+	combat_log.append_text("You gained %s.\n" % str(instinct.get("name", "Instinct")))
+	reward_overlay.visible = false
+	continue_button.disabled = false

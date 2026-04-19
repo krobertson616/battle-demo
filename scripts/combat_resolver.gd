@@ -168,7 +168,11 @@ static func _get_last_living_index(units: Array) -> int:
 		if int(units[i]["health"]) > 0:
 			return i
 	return -1
-
+static func _get_first_living_index_with_modifier(units: Array, modifier_id: String) -> int:
+	for i in range(units.size()):
+		if int(units[i]["health"]) > 0 and _has_modifier(units[i], modifier_id):
+			return i
+	return -1
 
 static func _get_target_index(attacker: Dictionary, units: Array) -> int:
 	# 1. Taunt overrides all instincts
@@ -203,6 +207,12 @@ static func _get_target_index(attacker: Dictionary, units: Array) -> int:
 							chosen_index = _get_last_living_index(units)
 						"random":
 							chosen_index = _get_random_living_index(units)
+						"burning":
+							chosen_index = _get_first_living_index_with_modifier(units, "burning")
+						"poisoned":
+							chosen_index = _get_first_living_index_with_modifier(units, "poisoned")
+						"frozen":
+							chosen_index = _get_first_living_index_with_modifier(units, "frozen")
 
 					if chosen_index != -1:
 						# print("[TARGET] ", attacker.get("name", "Unknown"), " used instinct rule: ", rule, " -> target index ", chosen_index)
@@ -221,6 +231,12 @@ static func _get_target_index(attacker: Dictionary, units: Array) -> int:
 						chosen_index = _get_first_living_index(units)
 					"target_back":
 						chosen_index = _get_last_living_index(units)
+					"target_burning":
+						chosen_index = _get_first_living_index_with_modifier(units, "burning")
+					"target_poisoned":
+						chosen_index = _get_first_living_index_with_modifier(units, "poisoned")
+					"target_frozen":
+						chosen_index = _get_first_living_index_with_modifier(units, "frozen")
 
 				if chosen_index != -1:
 					# print("[TARGET] ", attacker.get("name", "Unknown"), " used legacy instinct: ", instinct_str, " -> target index ", chosen_index)
@@ -230,7 +246,52 @@ static func _get_target_index(attacker: Dictionary, units: Array) -> int:
 	var random_index := _get_random_living_index(units)
 	# print("[TARGET] ", attacker.get("name", "Unknown"), " used fallback random target index ", random_index)
 	return random_index
+static func _get_passive_instinct_value(unit: Dictionary, rule: String, default_value: int = 0) -> int:
+	return _get_instinct_value(unit, "passive", rule, default_value)
 
+static func _has_passive_instinct(unit: Dictionary, rule: String) -> bool:
+	return _get_passive_instinct_value(unit, rule, 0) > 0
+
+static func _get_attack_bonus_from_instincts(unit: Dictionary) -> int:
+	var bonus := 0
+
+	if int(unit["health"]) * 2 < int(unit["max_health"]):
+		bonus += _get_passive_instinct_value(unit, "low_hp_attack", 0)
+
+	return bonus
+
+static func _get_bonus_damage_vs_target(attacker: Dictionary, target: Dictionary) -> int:
+	var bonus := 0
+
+	if _has_modifier(target, "greased"):
+		bonus += _get_passive_instinct_value(attacker, "bonus_vs_greased", 0)
+
+	if _has_modifier(target, "poisoned"):
+		bonus += _get_passive_instinct_value(attacker, "bonus_vs_poisoned", 0)
+
+	if _has_modifier(target, "frozen"):
+		bonus += _get_passive_instinct_value(attacker, "bonus_vs_frozen", 0)
+
+	return bonus
+
+static func _ensure_combat_flags(unit: Dictionary) -> void:
+	if not unit.has("combat_flags") or typeof(unit["combat_flags"]) != TYPE_DICTIONARY:
+		unit["combat_flags"] = {}
+
+static func _consume_first_hit_grease(unit: Dictionary) -> bool:
+	var value: int = _get_passive_instinct_value(unit, "first_hit_grease", 0)
+	if value <= 0:
+		return false
+
+	_ensure_combat_flags(unit)
+
+	var flags: Dictionary = unit["combat_flags"]
+	if bool(flags.get("first_hit_grease_used", false)):
+		return false
+
+	flags["first_hit_grease_used"] = true
+	unit["combat_flags"] = flags
+	return true
 
 static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 	var log_lines: Array[String] = []
@@ -250,7 +311,8 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			"id": m.id,
 			"modifiers": m.modifiers.duplicate(),
 			"equipped_modifiers": m.equipped_modifiers.duplicate(),
-			"instincts": m.instincts.duplicate()
+			"instincts": m.instincts.duplicate(),
+			"combat_flags": {}
 		})
 
 	for i in range(enemy_team.size()):
@@ -264,7 +326,8 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			"id": m.id,
 			"modifiers": m.modifiers.duplicate(),
 			"equipped_modifiers": m.equipped_modifiers.duplicate(),
-			"instincts": m.instincts.duplicate()
+			"instincts": m.instincts.duplicate(),
+			"combat_flags": {}
 		})
 
 	var p_turn_index: int = 0
@@ -413,7 +476,18 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 						"target_index": p_target_index
 					})
 				else:
-					var damage_to_enemy: int = max(1, int(p["attack"]) - p_attack_penalty)
+					var target_was_burning: bool = _has_modifier(p_target, "burning")
+
+					var p_attack_bonus: int = _get_attack_bonus_from_instincts(p)
+					if p_attack_bonus > 0:
+						log_lines.append("%s gains +%d attack from Last Stand" % [p["name"], p_attack_bonus])
+
+					var bonus_vs_target: int = _get_bonus_damage_vs_target(p, p_target)
+
+					var damage_to_enemy: int = max(
+						1,
+						int(p["attack"]) - p_attack_penalty + p_attack_bonus + bonus_vs_target
+					)
 					var original_damage_to_enemy: int = damage_to_enemy
 					var enemy_reduction: int = _get_damage_reduction(p_target)
 
@@ -478,7 +552,83 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 							"target_index": p_target_index,
 							"status": "greased"
 						})
+					# Slick Strikes: first successful attack each combat also greases
+					if _consume_first_hit_grease(p):
+						if int(p_target["health"]) > 0 and not _has_modifier(p_target, "greased"):
+							if not p_target.has("modifiers"):
+								p_target["modifiers"] = []
+							p_target["modifiers"].append("greased")
+							log_lines.append("%s greases %s with Slick Strikes" % [p["name"], p_target["name"]])
+							events.append({
+								"type": "status_applied",
+								"target_side": "enemy",
+								"target_name": p_target["name"],
+								"target_index": p_target_index,
+								"status": "greased"
+							})
 
+					# Wildfire: gain attack after damaging a burning enemy
+					var wildfire_gain: int = _get_passive_instinct_value(p, "gain_attack_on_burning_hit", 0)
+					if wildfire_gain > 0 and target_was_burning and damage_to_enemy > 0:
+						p["attack"] += wildfire_gain
+						log_lines.append("%s gains +%d attack from Wildfire" % [p["name"], wildfire_gain])
+						events.append({
+							"type": "attack_changed",
+							"target_side": "player",
+							"target_name": p["name"],
+							"target_index": p_attacker_index,
+							"amount": wildfire_gain,
+							"new_attack": p["attack"],
+							"reason": "wildfire"
+						})
+
+					# Blood Rush: gain permanent-in-combat attack on kill
+					var blood_rush_gain: int = _get_passive_instinct_value(p, "gain_attack_on_kill", 0)
+					if blood_rush_gain > 0 and int(p_target["health"]) <= 0:
+						p["attack"] += blood_rush_gain
+						log_lines.append("%s gains +%d attack from Blood Rush" % [p["name"], blood_rush_gain])
+						events.append({
+							"type": "attack_changed",
+							"target_side": "player",
+							"target_name": p["name"],
+							"target_index": p_attacker_index,
+							"amount": blood_rush_gain,
+							"new_attack": p["attack"],
+							"reason": "blood_rush"
+						})
+
+					# Spiked Shell / thorns_on_hit
+					var thorns_damage_to_player: int = _get_passive_instinct_value(p_target, "thorns_on_hit", 0)
+					if thorns_damage_to_player > 0 and int(p["health"]) > 0:
+						p["health"] = max(0, int(p["health"]) - thorns_damage_to_player)
+						log_lines.append("%s's Spiked Shell hits %s for %d" % [p_target["name"], p["name"], thorns_damage_to_player])
+
+						events.append({
+							"type": "damage",
+							"target_side": "player",
+							"target_name": p["name"],
+							"target_index": p_attacker_index,
+							"amount": thorns_damage_to_player,
+							"remaining_hp": p["health"],
+							"soaked": false,
+							"reduced_by": 0
+						})
+
+						if int(p["health"]) <= 0:
+							log_lines.append("%s dies" % p["name"])
+							events.append({
+								"type": "death",
+								"side": "player",
+								"name": p["name"],
+								"target_index": p_attacker_index
+							})
+							p_units.remove_at(p_attacker_index)
+
+							if p_units.is_empty():
+								break
+
+							player_turn = false
+							continue
 					log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
 					events.append({
 						"type": "damage",
@@ -673,7 +823,18 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 						"target_index": e_target_index
 					})
 				else:
-					var damage_to_player: int = max(1, int(e["attack"]) - e_attack_penalty)
+					var target_was_burning: bool = _has_modifier(e_target, "burning")
+
+					var e_attack_bonus: int = _get_attack_bonus_from_instincts(e)
+					if e_attack_bonus > 0:
+						log_lines.append("%s gains +%d attack from Last Stand" % [e["name"], e_attack_bonus])
+
+					var bonus_vs_target: int = _get_bonus_damage_vs_target(e, e_target)
+
+					var damage_to_player: int = max(
+						1,
+						int(e["attack"]) - e_attack_penalty + e_attack_bonus + bonus_vs_target
+					)
 					var original_damage_to_player: int = damage_to_player
 					var player_reduction: int = _get_damage_reduction(e_target)
 
@@ -738,7 +899,83 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 							"target_index": e_target_index,
 							"status": "greased"
 						})
+					# Slick Strikes: first successful attack each combat also greases
+					if _consume_first_hit_grease(e):
+						if int(e_target["health"]) > 0 and not _has_modifier(e_target, "greased"):
+							if not e_target.has("modifiers"):
+								e_target["modifiers"] = []
+							e_target["modifiers"].append("greased")
+							log_lines.append("%s greases %s with Slick Strikes" % [e["name"], e_target["name"]])
+							events.append({
+								"type": "status_applied",
+								"target_side": "player",
+								"target_name": e_target["name"],
+								"target_index": e_target_index,
+								"status": "greased"
+							})
 
+					# Wildfire: gain attack after damaging a burning enemy
+					var wildfire_gain: int = _get_passive_instinct_value(e, "gain_attack_on_burning_hit", 0)
+					if wildfire_gain > 0 and target_was_burning and damage_to_player > 0:
+						e["attack"] += wildfire_gain
+						log_lines.append("%s gains +%d attack from Wildfire" % [e["name"], wildfire_gain])
+						events.append({
+							"type": "attack_changed",
+							"target_side": "enemy",
+							"target_name": e["name"],
+							"target_index": e_attacker_index,
+							"amount": wildfire_gain,
+							"new_attack": e["attack"],
+							"reason": "wildfire"
+						})
+
+					# Blood Rush: gain permanent-in-combat attack on kill
+					var blood_rush_gain: int = _get_passive_instinct_value(e, "gain_attack_on_kill", 0)
+					if blood_rush_gain > 0 and int(e_target["health"]) <= 0:
+						e["attack"] += blood_rush_gain
+						log_lines.append("%s gains +%d attack from Blood Rush" % [e["name"], blood_rush_gain])
+						events.append({
+							"type": "attack_changed",
+							"target_side": "enemy",
+							"target_name": e["name"],
+							"target_index": e_attacker_index,
+							"amount": blood_rush_gain,
+							"new_attack": e["attack"],
+							"reason": "blood_rush"
+						})
+
+					# Spiked Shell / thorns_on_hit
+					var thorns_damage_to_enemy: int = _get_passive_instinct_value(e_target, "thorns_on_hit", 0)
+					if thorns_damage_to_enemy > 0 and int(e["health"]) > 0:
+						e["health"] = max(0, int(e["health"]) - thorns_damage_to_enemy)
+						log_lines.append("%s's Spiked Shell hits %s for %d" % [e_target["name"], e["name"], thorns_damage_to_enemy])
+
+						events.append({
+							"type": "damage",
+							"target_side": "enemy",
+							"target_name": e["name"],
+							"target_index": e_attacker_index,
+							"amount": thorns_damage_to_enemy,
+							"remaining_hp": e["health"],
+							"soaked": false,
+							"reduced_by": 0
+						})
+
+						if int(e["health"]) <= 0:
+							log_lines.append("%s dies" % e["name"])
+							events.append({
+								"type": "death",
+								"side": "enemy",
+								"name": e["name"],
+								"target_index": e_attacker_index
+							})
+							e_units.remove_at(e_attacker_index)
+
+							if e_units.is_empty():
+								break
+
+							player_turn = true
+							continue
 					log_lines.append("%s takes %d damage" % [e_target["name"], damage_to_player])
 					events.append({
 						"type": "damage",

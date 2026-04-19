@@ -11,6 +11,33 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_r8trg")
 
+[node name="RewardOverlay" type="CenterContainer" parent="." unique_id=579206431]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="RewardPanel" type="PanelContainer" parent="RewardOverlay" unique_id=1118826932]
+visible = false
+custom_minimum_size = Vector2(700, 300)
+layout_mode = 2
+
+[node name="RewardVBox" type="VBoxContainer" parent="RewardOverlay/RewardPanel" unique_id=2732455]
+layout_mode = 2
+
+[node name="RewardTitle" type="Label" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=303746017]
+layout_mode = 2
+text = "Choose an Instinct"
+
+[node name="XpGainLabel" type="Label" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=639614931]
+layout_mode = 2
+
+[node name="RewardChoiceRow" type="HBoxContainer" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=204643066]
+layout_mode = 2
+
 [node name="BackgroundTexture" type="TextureRect" parent="." unique_id=1470291607]
 layout_mode = 1
 anchors_preset = 15

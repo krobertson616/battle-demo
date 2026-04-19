@@ -176,6 +176,22 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 		m.set_meta("texture", load("res://assets/stoneguardian.png"))
 	if id == "superslime":
 		m.set_meta("texture", load("res://assets/slimeking.png"))
+	if id == "mossmender":
+		m.set_meta("texture", load("res://assets/mossmender.png"))
+	if id == "elder_mossmender":
+		m.set_meta("texture", load("res://assets/mossmender.png"))
+	if id == "fang_adder":
+		m.set_meta("texture", load("res://assets/spider.png"))
+	if id == "venom_maw":
+		m.set_meta("texture", load("res://assets/spider.png"))
+	if id == "razor_mite":
+		m.set_meta("texture", load("res://assets/CaveRaptor.png"))
+	if id == "razor_horror":
+		m.set_meta("texture", load("res://assets/CaveRaptor.png"))
+	if id == "frost_wisp":
+		m.set_meta("texture", load("res://assets/chillmoth.png"))
+	if id == "icebound_seer":
+		m.set_meta("texture", load("res://assets/chillmoth.png"))
 
 	return m
 func build_first_test_run() -> void:
@@ -447,15 +463,6 @@ func get_instinct_shop_pool() -> Array:
 	return [
 		{
 			"shop_type": "instinct",
-			"id": "target_highest_health",
-			"name": "Hunter Instinct",
-			"description": "Attack the highest health enemy",
-			"type": "targeting",
-			"rule": "highest_health",
-			"cost": 1
-		},
-		{
-			"shop_type": "instinct",
 			"id": "target_lowest_health",
 			"name": "Execute Instinct",
 			"description": "Attack the lowest health enemy",
@@ -465,11 +472,29 @@ func get_instinct_shop_pool() -> Array:
 		},
 		{
 			"shop_type": "instinct",
-			"id": "target_front",
-			"name": "Front Instinct",
-			"description": "Attack the front enemy",
+			"id": "target_burning",
+			"name": "Scorch Hunter",
+			"description": "Attack burning enemies first",
 			"type": "targeting",
-			"rule": "front",
+			"rule": "burning",
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "target_poisoned",
+			"name": "Venom Hunter",
+			"description": "Attack poisoned enemies first",
+			"type": "targeting",
+			"rule": "poisoned",
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "target_frozen",
+			"name": "Frost Hunter",
+			"description": "Attack frozen enemies first",
+			"type": "targeting",
+			"rule": "frozen",
 			"cost": 1
 		},
 		{
@@ -480,6 +505,76 @@ func get_instinct_shop_pool() -> Array:
 			"type": "passive",
 			"rule": "reduce_damage",
 			"value": 1,
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "spiked_shell",
+			"name": "Spiked Shell",
+			"description": "When hit by an attack, deal 1 damage back",
+			"type": "passive",
+			"rule": "thorns_on_hit",
+			"value": 1,
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "blood_rush",
+			"name": "Blood Rush",
+			"description": "When this kills an enemy, gain +1 attack",
+			"type": "passive",
+			"rule": "gain_attack_on_kill",
+			"value": 1,
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "kindling",
+			"name": "Kindling",
+			"description": "Deal +1 damage to greased enemies",
+			"type": "passive",
+			"rule": "bonus_vs_greased",
+			"value": 1,
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "wildfire",
+			"name": "Wildfire",
+			"description": "After damaging a burning enemy, gain +1 attack this combat",
+			"type": "passive",
+			"rule": "gain_attack_on_burning_hit",
+			"value": 1,
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "slick_strikes",
+			"name": "Slick Strikes",
+			"description": "First successful attack each combat also applies greased",
+			"type": "passive",
+			"rule": "first_hit_grease",
+			"value": 1,
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "venom_fang",
+			"name": "Venom Fang",
+			"description": "Deal +1 damage to poisoned enemies",
+			"type": "passive",
+			"rule": "bonus_vs_poisoned",
+			"value": 1,
+			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "shatter_instinct",
+			"name": "Shatter Instinct",
+			"description": "Deal +2 damage to frozen enemies",
+			"type": "passive",
+			"rule": "bonus_vs_frozen",
+			"value": 2,
 			"cost": 1
 		}
 	]
@@ -860,3 +955,21 @@ func end_run_to_map() -> void:
 	pending_extract_count = 0
 
 	clear_selected_location()
+	
+func build_instinct_reward_choices(count: int = 3) -> Array:
+	var pool: Array = get_instinct_shop_pool().duplicate(true)
+	pool.shuffle()
+
+	var picks: Array = []
+	while picks.size() < count and not pool.is_empty():
+		picks.append(pool.pop_back())
+
+	return picks
+
+
+func add_instinct_reward_to_hand(instinct: Dictionary) -> void:
+	var item := instinct_dict_to_item(instinct)
+	hand_cards.append({
+		"card_type": "instinct",
+		"item": item
+	})

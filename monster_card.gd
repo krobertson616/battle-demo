@@ -10,7 +10,7 @@ signal monster_dropped_on_card(source_type: String, source_index: int, slot_inde
 @onready var slash_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/SlashLabel
 @onready var health_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/HealthLabel
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ModifierLabel
-@onready var slots_label: Label = $PanelContainer/MarginContainer/VBoxContainer/SlotsLabel
+@onready var upgrade_chips: VBoxContainer = $PanelContainer/MarginContainer/VBoxContainer/UpgradeChips
 @onready var xp_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/ProgressBar
 
 var _monster_data = null
@@ -18,6 +18,8 @@ var source_type: String = ""
 var source_index: int = -1
 var _pending_slot_index: int = -1
 var greased_label: Label = null
+var _show_instinct_details: bool = false
+
 
 func setup(monster, p_source_type: String = "", p_source_index: int = -1) -> void:
 	_monster_data = monster
@@ -181,7 +183,7 @@ func _get_drag_data(_at_position: Vector2):
 	var preview_card = duplicate()
 	preview_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview_card.modulate.a = 0.9
-	preview_card.custom_minimum_size = Vector2(150, 180)
+	preview_card.custom_minimum_size = Vector2(150, 250)
 	preview_card.position = Vector2(-75, -90)
 
 	preview_root.add_child(preview_card)
@@ -263,91 +265,122 @@ func _dedupe_string_array(items: Array[String]) -> Array[String]:
 		if not result.has(item):
 			result.append(item)
 	return result
+func _clear_upgrade_chips() -> void:
+	for child in upgrade_chips.get_children():
+		child.queue_free()
 
+
+func _add_upgrade_chip(text: String, tooltip: String) -> void:
+	var chip := Label.new()
+	chip.text = text
+	chip.tooltip_text = tooltip
+	chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	chip.add_theme_font_size_override("font_size", 15)
+	chip.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	chip.add_theme_constant_override("outline_size", 4)
+	chip.clip_text = false
+
+	upgrade_chips.add_child(chip)
 func _update_slots_label() -> void:
+	_clear_upgrade_chips()
+
 	if _monster_data == null:
-		slots_label.text = ""
-		slots_label.visible = false
 		return
 
-	var total: int = int(_data_get("modifier_slots", 0))
 	var equipped = _data_get("equipped_modifiers", [])
 	var instincts = _data_get("instincts", [])
-
-	if total <= 0 and equipped.is_empty() and instincts.is_empty():
-		slots_label.text = ""
-		slots_label.visible = false
-		return
-
-	var parts: Array[String] = []
 
 	for mod in equipped:
 		match String(mod):
 			"thorns":
-				parts.append("🌵 THORNS")
+				_add_upgrade_chip("🌵 SPIKED", "When hit by an attack, deal 1 damage back.")
 			"shield":
-				parts.append("🛡 SHIELD")
+				_add_upgrade_chip("🛡 SHIELD", "Defensive upgrade.")
 			"parry":
-				parts.append("⚔ PARRY")
+				_add_upgrade_chip("⚔ PARRY", "Defensive upgrade.")
 			"taunt":
-				parts.append("🛡 TAUNT")
+				_add_upgrade_chip("🛡 TAUNT", "Enemies must target this unit if able.")
 			_:
-				parts.append(String(mod).to_upper())
+				_add_upgrade_chip(String(mod).to_upper(), String(mod).capitalize())
 
 	for inst in instincts:
 		var rule := ""
 		var label := ""
+		var description := ""
 
 		if typeof(inst) == TYPE_DICTIONARY:
 			var inst_dict: Dictionary = inst
 			rule = String(inst_dict.get("rule", ""))
 			label = String(inst_dict.get("name", "INSTINCT"))
+			description = String(inst_dict.get("description", ""))
 		elif typeof(inst) == TYPE_STRING:
 			var inst_str: String = inst
 			match inst_str:
 				"target_highest_health":
 					rule = "highest_health"
 					label = "Hunter Instinct"
+					description = "Attack the highest health enemy."
 				"target_lowest_health":
 					rule = "lowest_health"
 					label = "Execute Instinct"
+					description = "Attack the lowest health enemy."
 				"target_front":
 					rule = "front"
 					label = "Front Instinct"
+					description = "Attack the front enemy."
 				"target_back":
 					rule = "back"
 					label = "Back Instinct"
+					description = "Attack the back enemy."
+				"target_burning":
+					rule = "burning"
+					label = "Scorch Hunter"
+					description = "Attack burning enemies first."
+				"target_poisoned":
+					rule = "poisoned"
+					label = "Venom Hunter"
+					description = "Attack poisoned enemies first."
+				"target_frozen":
+					rule = "frozen"
+					label = "Frost Hunter"
+					description = "Attack frozen enemies first."
 
 		match rule:
 			"highest_health":
-				parts.append("🎯 HUNTER")
+				_add_upgrade_chip("🎯 HUNTER", description if description != "" else "Attack the highest health enemy.")
 			"lowest_health":
-				parts.append("🩸 EXECUTE")
+				_add_upgrade_chip("🩸 EXECUTE", description if description != "" else "Attack the lowest health enemy.")
 			"front":
-				parts.append("➡ FRONT")
+				_add_upgrade_chip("➡ FRONT", description if description != "" else "Attack the front enemy.")
 			"back":
-				parts.append("⬅ BACK")
+				_add_upgrade_chip("⬅ BACK", description if description != "" else "Attack the back enemy.")
+			"burning":
+				_add_upgrade_chip("🔥 SCORCH", description if description != "" else "Attack burning enemies first.")
+			"poisoned":
+				_add_upgrade_chip("☠ VENOM", description if description != "" else "Attack poisoned enemies first.")
+			"frozen":
+				_add_upgrade_chip("❄ FROST", description if description != "" else "Attack frozen enemies first.")
+			"reduce_damage":
+				_add_upgrade_chip("🛡 THICK HIDE", description if description != "" else "Takes 1 less damage from attacks.")
+			"thorns_on_hit":
+				_add_upgrade_chip("🌵 SPIKED", description if description != "" else "When hit by an attack, deal 1 damage back.")
+			"low_hp_attack":
+				_add_upgrade_chip("🔥 LAST STAND", description if description != "" else "Gain bonus attack while below half health.")
+			"bonus_vs_greased":
+				_add_upgrade_chip("🪔 KINDLING", description if description != "" else "Deal +1 damage to greased enemies.")
+			"gain_attack_on_burning_hit":
+				_add_upgrade_chip("🔥 WILDFIRE", description if description != "" else "After damaging a burning enemy, gain +1 attack this combat.")
+			"first_hit_grease":
+				_add_upgrade_chip("🛢 SLICK", description if description != "" else "First successful attack each combat also applies greased.")
+			"bonus_vs_poisoned":
+				_add_upgrade_chip("☠ VENOM FANG", description if description != "" else "Deal +1 damage to poisoned enemies.")
+			"bonus_vs_frozen":
+				_add_upgrade_chip("❄ SHATTER", description if description != "" else "Deal +2 damage to frozen enemies.")
+			"gain_attack_on_kill":
+				_add_upgrade_chip("🩸 BLOOD RUSH", description if description != "" else "When this kills an enemy, gain +1 attack.")
 			_:
 				if label != "":
-					parts.append("✨ " + label.to_upper())
-				else:
-					parts.append("✨ INSTINCT")
-
-	if total > 0:
-		var filled: int = int(equipped.size())
-		var slot_text := ""
-
-		for i in range(total):
-			if i < filled:
-				slot_text += "[X] "
-			else:
-				slot_text += "[ ] "
-
-		parts.append(slot_text.strip_edges())
-
-	slots_label.text = " ".join(parts)
-	slots_label.visible = true
-
+					_add_upgrade_chip("✨ " + label.to_upper(), description if description != "" else label)
 func _can_drop_data(_pos, data) -> bool:
 	if source_type != "board":
 		return false
