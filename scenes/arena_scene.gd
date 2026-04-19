@@ -175,6 +175,26 @@ func _play_combat_events(events: Array) -> void:
 					combat_log.append_text("%s dodges the attack!\n" % target_name)
 					_show_floating_miss(target_side, target_index)
 					await get_tree().create_timer(0.18).timeout
+			"heal":
+				var target_side: String = str(event.get("target_side", ""))
+				var target_index: int = int(event.get("target_index", -1))
+				var target_name: String = str(event.get("target_name", ""))
+				var amount: int = int(event.get("amount", 0))
+				var remaining_hp: int = int(event.get("remaining_hp", 0))
+				var source_name: String = str(event.get("source_name", ""))
+
+				combat_log.append_text("%s heals %s for %d\n" % [source_name, target_name, amount])
+
+				if target_side == "player":
+					if target_index >= 0 and target_index < visual_player_team.size():
+						visual_player_team[target_index].health = remaining_hp
+				elif target_side == "enemy":
+					if target_index >= 0 and target_index < visual_enemy_team.size():
+						visual_enemy_team[target_index].health = remaining_hp
+
+				_show_floating_heal(target_side, target_index, amount)
+				_render_teams()
+				await get_tree().create_timer(0.25).timeout
 			"dot_damage":
 				var target_side: String = str(event.get("target_side", ""))
 				var target_name: String = str(event.get("target_name", ""))
@@ -485,6 +505,33 @@ func _show_floating_burn_damage(side: String, index: int, amount: int) -> void:
 
 	# fade out
 	tween.parallel().tween_property(label, "modulate", Color(1.0, 0.4, 0.1, 0), 0.5)
+
+	await tween.finished
+	label.queue_free()
+	
+func _show_floating_heal(side: String, index: int, amount: int) -> void:
+	var holder = _get_holder_node(side, index)
+	if holder == null:
+		return
+
+	var label := Label.new()
+	label.text = "+%d" % amount
+	label.add_theme_font_size_override("font_size", 26)
+	label.modulate = Color(0.3, 1.0, 0.4, 1.0)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 6)
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	add_child(label)
+
+	var card_center = holder.get_global_position() + (holder.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-18, -35)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -45), 0.5)
+	tween.parallel().tween_property(label, "modulate", Color(0.3, 1.0, 0.4, 0.0), 0.5)
 
 	await tween.finished
 	label.queue_free()

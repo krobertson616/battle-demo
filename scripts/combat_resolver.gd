@@ -273,36 +273,17 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			var p: Dictionary = p_units[p_attacker_index]
 			var p_target_index: int = _get_target_index(p, e_units)
-
 			if p_target_index == -1:
 				break
 
 			if _has_modifier(p, "regenerate"):
-				var old_hp: int = int(p["health"])
+				var old_regen_hp: int = int(p["health"])
 				p["health"] = min(int(p["max_health"]), int(p["health"]) + 1)
-				if int(p["health"]) > old_hp:
+				if int(p["health"]) > old_regen_hp:
 					log_lines.append("%s regenerates 1 health" % p["name"])
-			if _has_modifier(p, "heal"):
-				var heal_target_index := _get_most_injured_living_index(p_units)
-				if heal_target_index != -1:
-					var heal_target: Dictionary = p_units[heal_target_index]
-					var old_hp: int = int(heal_target["health"])
 
-					heal_target["health"] = min(int(heal_target["max_health"]), old_hp + 1)
-
-					if int(heal_target["health"]) > old_hp:
-						log_lines.append("%s heals %s for 1" % [p["name"], heal_target["name"]])
-						events.append({
-							"type": "heal",
-							"target_side": "player",
-							"target_name": heal_target["name"],
-							"target_index": heal_target_index,
-							"amount": 1,
-							"remaining_hp": heal_target["health"],
-							"source_name": p["name"]
-						})
 			if _has_modifier(p, "burning"):
-				var burn_damage := 1
+				var burn_damage: int = 1
 
 				if _has_modifier(p, "greased"):
 					burn_damage += 1
@@ -336,6 +317,7 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 					player_turn = false
 					continue
+
 			var p_target: Dictionary = e_units[p_target_index]
 			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
 			events.append({
@@ -365,27 +347,26 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 				player_turn = false
 				continue
-			var damage_to_enemy: int = int(p["attack"])
 
+			var damage_to_enemy: int = int(p["attack"])
 			var original_damage_to_enemy: int = damage_to_enemy
 			var enemy_reduction: int = _get_damage_reduction(p_target)
 
 			damage_to_enemy = max(1, damage_to_enemy - enemy_reduction)
 
 			var enemy_blocked: int = original_damage_to_enemy - damage_to_enemy
-			var enemy_soaked := enemy_blocked > 0
+			var enemy_soaked: bool = enemy_blocked > 0
 
 			if enemy_soaked:
 				log_lines.append("%s's Thick Hide reduces damage by %d" % [p_target["name"], enemy_blocked])
+
 			p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
-			print("PLAYER ATTACKER MODIFIERS: ", p.get("modifiers", []))
-			print("PLAYER TARGET MODIFIERS BEFORE BURN: ", p_target.get("modifiers", []))
+
 			if _has_modifier(p, "burn") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "burning"):
 				if not p_target.has("modifiers"):
 					p_target["modifiers"] = []
 
 				p_target["modifiers"].append("burning")
-				print("APPLIED BURNING TO: ", p_target["name"], " MODIFIERS NOW: ", p_target["modifiers"])
 				log_lines.append("%s sets %s on fire" % [p["name"], p_target["name"]])
 
 				events.append({
@@ -394,7 +375,8 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_name": p_target["name"],
 					"target_index": p_target_index,
 					"status": "burning"
-	})
+				})
+
 			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
 				if not p_target.has("modifiers"):
 					p_target["modifiers"] = []
@@ -409,18 +391,18 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_index": p_target_index,
 					"status": "greased"
 				})
-			log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
 
+			log_lines.append("%s takes %d damage" % [p_target["name"], damage_to_enemy])
 			events.append({
-	"type": "damage",
-	"target_side": "enemy",
-	"target_name": p_target["name"],
-	"target_index": p_target_index,
-	"amount": damage_to_enemy,
-	"remaining_hp": p_target["health"],
-	"soaked": enemy_soaked,
-	"reduced_by": enemy_blocked
-})
+				"type": "damage",
+				"target_side": "enemy",
+				"target_name": p_target["name"],
+				"target_index": p_target_index,
+				"amount": damage_to_enemy,
+				"remaining_hp": p_target["health"],
+				"soaked": enemy_soaked,
+				"reduced_by": enemy_blocked
+			})
 
 			for i in range(e_units.size() - 1, -1, -1):
 				if int(e_units[i]["health"]) <= 0:
@@ -432,6 +414,26 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 						"target_index": i
 					})
 					e_units.remove_at(i)
+
+			if _has_modifier(p, "heal"):
+				var heal_target_index: int = _get_most_injured_living_index(p_units)
+				if heal_target_index != -1:
+					var heal_target: Dictionary = p_units[heal_target_index]
+					var old_heal_hp: int = int(heal_target["health"])
+					var new_heal_hp: int = min(int(heal_target["max_health"]), old_heal_hp + 1)
+
+					if new_heal_hp > old_heal_hp:
+						heal_target["health"] = new_heal_hp
+						log_lines.append("%s heals %s for 1" % [p["name"], heal_target["name"]])
+						events.append({
+							"type": "heal",
+							"target_side": "player",
+							"target_name": heal_target["name"],
+							"target_index": heal_target_index,
+							"amount": 1,
+							"remaining_hp": new_heal_hp,
+							"source_name": p["name"]
+						})
 
 			if not p_units.is_empty():
 				var next_p_index: int = p_attacker_index + 1
@@ -448,36 +450,17 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			var e: Dictionary = e_units[e_attacker_index]
 			var e_target_index: int = _get_target_index(e, p_units)
-
 			if e_target_index == -1:
 				break
 
 			if _has_modifier(e, "regenerate"):
-				var old_hp: int = int(e["health"])
+				var old_regen_hp: int = int(e["health"])
 				e["health"] = min(int(e["max_health"]), int(e["health"]) + 1)
-				if int(e["health"]) > old_hp:
+				if int(e["health"]) > old_regen_hp:
 					log_lines.append("%s regenerates 1 health" % e["name"])
-			if _has_modifier(e, "heal"):
-				var heal_target_index := _get_most_injured_living_index(e_units)
-				if heal_target_index != -1:
-					var heal_target: Dictionary = e_units[heal_target_index]
-					var old_hp: int = int(heal_target["health"])
 
-					heal_target["health"] = min(int(heal_target["max_health"]), old_hp + 1)
-
-					if int(heal_target["health"]) > old_hp:
-						log_lines.append("%s heals %s for 1" % [e["name"], heal_target["name"]])
-						events.append({
-							"type": "heal",
-							"target_side": "enemy",
-							"target_name": heal_target["name"],
-							"target_index": heal_target_index,
-							"amount": 1,
-							"remaining_hp": heal_target["health"],
-							"source_name": e["name"]
-						})
 			if _has_modifier(e, "burning"):
-				var burn_damage := 1
+				var burn_damage: int = 1
 
 				if _has_modifier(e, "greased"):
 					burn_damage += 1
@@ -511,6 +494,7 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 					player_turn = true
 					continue
+
 			var e_target: Dictionary = p_units[e_target_index]
 			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
 			events.append({
@@ -540,15 +524,15 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 				player_turn = true
 				continue
-			var damage_to_player: int = int(e["attack"])
 
+			var damage_to_player: int = int(e["attack"])
 			var original_damage_to_player: int = damage_to_player
 			var player_reduction: int = _get_damage_reduction(e_target)
 
 			damage_to_player = max(1, damage_to_player - player_reduction)
 
 			var player_blocked: int = original_damage_to_player - damage_to_player
-			var player_soaked := player_blocked > 0
+			var player_soaked: bool = player_blocked > 0
 
 			if player_soaked:
 				log_lines.append("%s's Thick Hide reduces damage by %d" % [e_target["name"], player_blocked])
@@ -569,6 +553,7 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_index": e_target_index,
 					"status": "burning"
 				})
+
 			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
 				if not e_target.has("modifiers"):
 					e_target["modifiers"] = []
@@ -583,8 +568,8 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_index": e_target_index,
 					"status": "greased"
 				})
-			log_lines.append("%s takes %d damage" % [e_target["name"], damage_to_player])
 
+			log_lines.append("%s takes %d damage" % [e_target["name"], damage_to_player])
 			events.append({
 				"type": "damage",
 				"target_side": "player",
@@ -606,6 +591,26 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 						"target_index": i
 					})
 					p_units.remove_at(i)
+
+			if _has_modifier(e, "heal"):
+				var heal_target_index: int = _get_most_injured_living_index(e_units)
+				if heal_target_index != -1:
+					var heal_target: Dictionary = e_units[heal_target_index]
+					var old_heal_hp: int = int(heal_target["health"])
+					var new_heal_hp: int = min(int(heal_target["max_health"]), old_heal_hp + 1)
+
+					if new_heal_hp > old_heal_hp:
+						heal_target["health"] = new_heal_hp
+						log_lines.append("%s heals %s for 1" % [e["name"], heal_target["name"]])
+						events.append({
+							"type": "heal",
+							"target_side": "enemy",
+							"target_name": heal_target["name"],
+							"target_index": heal_target_index,
+							"amount": 1,
+							"remaining_hp": new_heal_hp,
+							"source_name": e["name"]
+						})
 
 			if not e_units.is_empty():
 				var next_e_index: int = e_attacker_index + 1
