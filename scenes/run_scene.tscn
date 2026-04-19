@@ -96,3 +96,34 @@ offset_top = 427.0
 offset_right = 1080.0
 offset_bottom = 427.0
 script = ExtResource("3_bkspu")
+
+[node name="PostBossPanel" type="PanelContainer" parent="." unique_id=1269065673]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PostBossPanel" unique_id=57705153]
+layout_mode = 2
+
+[node name="BossChoiceLabel" type="Label" parent="PostBossPanel/VBoxContainer" unique_id=1916161020]
+layout_mode = 2
+
+[node name="ExtractChoicesRow" type="HBoxContainer" parent="PostBossPanel/VBoxContainer" unique_id=1393649615]
+layout_mode = 2
+
+[node name="ContinueDeeperButton" type="Button" parent="PostBossPanel/VBoxContainer" unique_id=1917511865]
+layout_mode = 2
+
+[node name="StarterPanel" type="PanelContainer" parent="." unique_id=931395617]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="StarterPanel" unique_id=723047495]
+layout_mode = 2
+
+[node name="StarterLabel" type="Label" parent="StarterPanel/VBoxContainer" unique_id=719132884]
+layout_mode = 2
+
+[node name="StarterChoicesRow" type="HBoxContainer" parent="StarterPanel/VBoxContainer" unique_id=2042391754]
+layout_mode = 2

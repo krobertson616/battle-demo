@@ -15,15 +15,25 @@ var item_pool: Array = []
 @onready var hand_row: HBoxContainer = $MarginContainer/VBoxContainer/HandRow
 @onready var sell_strip = $SellStrip
 
+@onready var post_boss_panel: PanelContainer = $PostBossPanel
+@onready var boss_choice_label: Label = $PostBossPanel/VBoxContainer/BossChoiceLabel
+@onready var extract_choices_row: HBoxContainer = $PostBossPanel/VBoxContainer/ExtractChoicesRow
+@onready var continue_deeper_button: Button = $PostBossPanel/VBoxContainer/ContinueDeeperButton
+
+@onready var starter_panel: PanelContainer = $StarterPanel
+@onready var starter_choices_row: HBoxContainer = $StarterPanel/VBoxContainer/StarterChoicesRow
+
 var monster_card_scene = preload("res://scenes/monster_card.tscn")
 var board_slot_scene = preload("res://scenes/board_slot.tscn")
 var instinct_card_scene = preload("res://scenes/instinct_card.tscn")
+var extraction_picks_remaining: int = 0
 
 
 func _ready() -> void:
 	item_pool = _create_item_pool()
 	sell_strip.card_sold.connect(_on_card_sold_to_shop)
 	shop_row.card_sold.connect(_on_card_sold_to_shop)
+	continue_deeper_button.pressed.connect(_on_continue_deeper_pressed)
 	GameState.sell_strip_ref = sell_strip
 
 	reroll_btn.pressed.connect(_reroll)
@@ -51,6 +61,10 @@ func _ready() -> void:
 		roll_shop()
 		
 	refresh_ui()
+	if GameState.saved_monsters.size() > 0 and _get_current_board_count() == 0:
+		_show_starter_panel()
+	else:
+		starter_panel.visible = false
 	if GameState.round_num == 1 and GameState.pending_result.is_empty():
 		add_log("Run started.")
 
@@ -70,6 +84,7 @@ func _apply_pending_combat_result() -> void:
 	if player_won:
 		add_log("[color=green]You win![/color]")
 		GameState.gold += 3
+
 		for survivor in GameState.pending_result.get("player_survivors", []):
 			var slot_index := int(survivor.get("slot_index", -1))
 			if slot_index >= 0 and slot_index < BOARD_SIZE:
@@ -79,12 +94,20 @@ func _apply_pending_combat_result() -> void:
 					add_log("%s gained 1 XP." % m.display_name)
 
 		var cleared_encounter_id := GameState.get_current_encounter_id()
+		var was_boss := cleared_encounter_id.begins_with("boss")
+
 		if cleared_encounter_id == "elite_1":
 			GameState.max_board_slots = 4
 			add_log("[color=yellow]A new board slot unlocked![/color]")
 
 		GameState.current_encounter_index += 1
 		print("Advanced to encounter index: ", GameState.current_encounter_index)
+
+		if was_boss:
+			GameState.bosses_cleared_this_run += 1
+			GameState.pending_extract_count = GameState.bosses_cleared_this_run
+			_show_post_boss_panel()
+
 	else:
 		add_log("[color=red]You lose![/color]")
 		GameState.health -= 2
@@ -102,7 +125,6 @@ func _apply_pending_combat_result() -> void:
 	GameState.pending_result = {}
 	GameState.pending_player_team = []
 	GameState.pending_enemy_team = []
-
 func roll_shop() -> void:
 	GameState.shop_monsters.clear()
 	GameState.shop_items.clear()
@@ -748,3 +770,108 @@ func _get_current_board_count() -> int:
 		if m != null:
 			count += 1
 	return count
+
+func _show_post_boss_panel() -> void:
+	extraction_picks_remaining = max(1, GameState.pending_extract_count)
+
+	for c in extract_choices_row.get_children():
+		c.queue_free()
+
+	for i in range(BOARD_SIZE):
+		var monster: MonsterData = GameState.board_monsters[i]
+		if monster == null:
+			continue
+
+		var btn := Button.new()
+		btn.text = "%s Lv.%d" % [monster.display_name, monster.level]
+		btn.pressed.connect(_on_extract_monster_pressed.bind(i))
+		extract_choices_row.add_child(btn)
+
+	var can_go_deeper := true
+	continue_deeper_button.disabled = false
+	if can_go_deeper:
+		boss_choice_label.text = "Boss down. Extract %d monster(s) or continue deeper." % extraction_picks_remaining
+	else:
+		boss_choice_label.text = "Boss down. Pick %d monster(s) to extract." % extraction_picks_remaining
+
+	continue_deeper_button.disabled = not can_go_deeper
+	post_boss_panel.visible = true
+
+	start_btn.disabled = true
+	reroll_btn.disabled = true
+
+
+func _on_extract_monster_pressed(slot_index: int) -> void:
+	if slot_index < 0 or slot_index >= BOARD_SIZE:
+		return
+
+	var monster: MonsterData = GameState.board_monsters[slot_index]
+	if monster == null:
+		return
+
+	GameState.save_monster_to_roster(monster)
+	add_log("[color=yellow]Extracted %s.[/color]" % monster.display_name)
+
+	extraction_picks_remaining -= 1
+
+	if extraction_picks_remaining <= 0:
+		_finish_run_after_extraction()
+		return
+
+	GameState.board_monsters[slot_index] = null
+	refresh_ui()
+	_show_post_boss_panel()
+
+
+func _on_continue_deeper_pressed() -> void:
+	post_boss_panel.visible = false
+	start_btn.disabled = false
+	reroll_btn.disabled = false
+
+	# TEST MODE:
+	# If we beat the last encounter, loop back to the beginning
+	if GameState.get_current_encounter_id() == "":
+		GameState.current_encounter_index = 0
+		add_log("[color=yellow]Looping run back to the start for testing.[/color]")
+	else:
+		add_log("You chose to continue deeper.")
+
+func _finish_run_after_extraction() -> void:
+	post_boss_panel.visible = false
+	GameState.reset_run_for_new_attempt()
+	get_tree().change_scene_to_file("res://scenes/run_scene.tscn")
+	
+func _show_starter_panel() -> void:
+	for c in starter_choices_row.get_children():
+		c.queue_free()
+
+	for i in range(GameState.saved_monsters.size()):
+		var monster: MonsterData = GameState.saved_monsters[i]
+
+		var btn := Button.new()
+		btn.text = "%s Lv.%d" % [monster.display_name, monster.level]
+		btn.pressed.connect(_on_starter_selected.bind(i))
+		starter_choices_row.add_child(btn)
+
+	starter_panel.visible = true
+	start_btn.disabled = true
+	reroll_btn.disabled = true
+
+
+func _on_starter_selected(index: int) -> void:
+	if index < 0 or index >= GameState.saved_monsters.size():
+		return
+
+	var chosen: MonsterData = GameState.clone_monster(GameState.saved_monsters[index])
+
+	if GameState.board_monsters.size() < BOARD_SIZE:
+		GameState.board_monsters = [null, null, null, null, null, null]
+
+	GameState.board_monsters[0] = chosen
+
+	starter_panel.visible = false
+	start_btn.disabled = false
+	reroll_btn.disabled = false
+
+	add_log("Starting run with %s." % chosen.display_name)
+	refresh_ui()

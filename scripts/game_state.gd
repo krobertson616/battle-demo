@@ -33,6 +33,10 @@ var selected_location: String = ""
 var selected_location_label: String = ""
 var max_board_slots: int = 3
 
+var saved_monsters: Array[MonsterData] = []
+var bosses_cleared_this_run: int = 0
+var pending_extract_count: int = 0
+
 func _ready() -> void:
 	randomize()
 	_build_monster_pools()
@@ -168,7 +172,32 @@ func clone_monster(template: MonsterData) -> MonsterData:
 		m.set_meta("texture", template.get_meta("texture"))
 
 	return m
+func save_monster_to_roster(monster: MonsterData) -> void:
+	if monster == null:
+		return
+	saved_monsters.append(clone_monster(monster))
 
+func reset_run_for_new_attempt() -> void:
+	run_started = false
+
+	pending_player_team = []
+	pending_enemy_team = []
+	pending_result = {}
+
+	board_monsters = [null, null, null, null, null, null]
+	hand_monsters = []
+	shop_monsters = []
+	hand_cards = []
+	shop_items = []
+
+	clear_selected_location()
+
+	current_encounter_index = 0
+	current_node_id = 0
+	selected_next_node_id = -1
+
+	bosses_cleared_this_run = 0
+	pending_extract_count = 0
 func can_add_modifier(monster: MonsterData, modifier_id: String) -> bool:
 	if monster.modifier_slots <= 0:
 		return false
