@@ -135,7 +135,7 @@ func _play_combat_events(events: Array) -> void:
 				var target_index: int = int(event.get("target_index", -1))
 				var status: String = str(event.get("status", ""))
 
-				if status == "greased" or status == "burning":
+				if status == "greased" or status == "burning" or status == "poisoned":
 					combat_log.append_text("%s is %s!\n" % [target_name, status])
 
 					if target_side == "enemy":
@@ -155,7 +155,7 @@ func _play_combat_events(events: Array) -> void:
 				var target_index: int = int(event.get("target_index", -1))
 				var status: String = str(event.get("status", ""))
 
-				if status == "greased" or status == "burning":
+				if status == "greased" or status == "burning" or status == "poisoned":
 					combat_log.append_text("%s is no longer %s.\n" % [target_name, status])
 
 					if target_side == "enemy":
@@ -211,9 +211,10 @@ func _play_combat_events(events: Array) -> void:
 
 				if source == "burn":
 					_show_floating_burn_damage(target_side, target_index, damage_amount)
+				elif source == "poison":
+					_show_floating_poison_damage(target_side, target_index, damage_amount)
 				else:
 					_show_floating_damage(target_side, target_index, damage_amount)
-
 				if target_side == "enemy":
 					if target_index >= 0 and target_index < visual_enemy_team.size():
 						visual_enemy_team[target_index].health = remaining_hp
@@ -532,6 +533,34 @@ func _show_floating_heal(side: String, index: int, amount: int) -> void:
 	var tween = create_tween()
 	tween.tween_property(label, "position", label.position + Vector2(0, -45), 0.5)
 	tween.parallel().tween_property(label, "modulate", Color(0.3, 1.0, 0.4, 0.0), 0.5)
+
+	await tween.finished
+	label.queue_free()
+func _show_floating_poison_damage(side: String, index: int, amount: int) -> void:
+	var holder = _get_holder_node(side, index)
+	if holder == null:
+		return
+
+	var label := Label.new()
+	label.text = "-%d" % amount
+	label.add_theme_font_size_override("font_size", 30)
+	label.modulate = Color(0.35, 1.0, 0.35, 1.0)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 6)
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	add_child(label)
+
+	var card_center = holder.get_global_position() + (holder.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-20, -40)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -50), 0.5)
+	tween.parallel().tween_property(label, "scale", Vector2(1.12, 1.12), 0.2)
+	tween.tween_property(label, "scale", Vector2(1, 1), 0.2)
+	tween.parallel().tween_property(label, "modulate", Color(0.35, 1.0, 0.35, 0), 0.5)
 
 	await tween.finished
 	label.queue_free()

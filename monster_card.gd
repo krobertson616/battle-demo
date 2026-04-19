@@ -4,10 +4,11 @@ signal instinct_dropped_on_card(source_index: int, slot_index: int, source_type:
 signal board_swap_requested(source_index: int, target_index: int)
 signal monster_dropped_on_card(source_type: String, source_index: int, slot_index: int)
 
-
 @onready var portrait: TextureRect = $PanelContainer/MarginContainer/VBoxContainer/Portrait
 @onready var name_label: Label = $PanelContainer/MarginContainer/VBoxContainer/NameLabel
-@onready var stats_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/StatsLabel
+@onready var attack_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/AttackLabel
+@onready var slash_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/SlashLabel
+@onready var health_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/HealthLabel
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ModifierLabel
 @onready var slots_label: Label = $PanelContainer/MarginContainer/VBoxContainer/SlotsLabel
 @onready var xp_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/ProgressBar
@@ -53,22 +54,38 @@ func _apply_data() -> void:
 	if _monster_data == null:
 		return
 
-	name_label.text = "%s  Lv.%d" % [
-	str(_data_get("display_name", "Unknown")),
-	int(_data_get("level", 1))
-]
-	stats_label.text = "%d / %d" % [
-		int(_data_get("attack", 0)),
-		int(_data_get("health", 0))
-	]
-	var level := int(_data_get("level", 1))
-	var xp := int(_data_get("xp", 0))
-	var needed := GameState.get_xp_needed_for_next_level(level)
+	var modifiers = _data_get("modifiers", [])
+	var has_poisoned := false
+	for mod in modifiers:
+		if String(mod) == "poisoned":
+			has_poisoned = true
+			break
 
-	name_label.text = "%s  Lv.%d" % [
+	var base_attack: int = int(_data_get("attack", 0))
+	var poison_penalty: int = 1 if has_poisoned else 0
+	var shown_attack: int = int(max(1, base_attack - poison_penalty))
+	var shown_health: int = int(_data_get("health", 0))
+
+	var level: int = int(_data_get("level", 1))
+	var xp: int = int(_data_get("xp", 0))
+	var needed: int = GameState.get_xp_needed_for_next_level(level)
+
+	name_label.text = "%s Lv.%d" % [
 		str(_data_get("display_name", "Unknown")),
 		level
 	]
+
+	attack_label.text = str(shown_attack)
+	health_label.text = str(shown_health)
+	slash_label.text = " / "
+
+	if has_poisoned:
+		attack_label.modulate = Color(0.35, 1.0, 0.35, 1.0)
+	else:
+		attack_label.modulate = Color(1, 1, 1, 1)
+
+	health_label.modulate = Color(1, 1, 1, 1)
+	slash_label.modulate = Color(1, 1, 1, 1)
 
 	if level >= 6:
 		xp_bar.visible = true
@@ -82,6 +99,7 @@ func _apply_data() -> void:
 		xp_bar.max_value = needed
 		xp_bar.value = xp
 		xp_bar.tooltip_text = "XP %d / %d" % [xp, needed]
+
 	var tex = _data_get_meta("texture", null)
 	if tex != null:
 		portrait.texture = tex
@@ -92,7 +110,6 @@ func _apply_data() -> void:
 	_update_slots_label()
 	_update_greased_indicator()
 	_update_status_tint()
-
 func _update_status_tint() -> void:
 	if _monster_data == null:
 		self_modulate = Color(1, 1, 1, 1)
@@ -206,6 +223,8 @@ func _update_modifier_label() -> void:
 				parts.append("PACK")
 			"oil":
 				parts.append("OIL")
+			"poison": parts.append("POISON")
+			"poisoned": pass
 			"greased":
 				pass
 			_:
@@ -383,6 +402,7 @@ func _update_greased_indicator() -> void:
 	var modifiers = _data_get("modifiers", [])
 	var has_greased := false
 	var has_burning := false
+	var has_poisoned := false
 
 	for mod in modifiers:
 		match String(mod):
@@ -390,8 +410,10 @@ func _update_greased_indicator() -> void:
 				has_greased = true
 			"burning":
 				has_burning = true
+			"poisoned":
+				has_poisoned = true
 
-	if not has_greased and not has_burning:
+	if not has_greased and not has_burning and not has_poisoned:
 		return
 
 	var parts: Array[String] = []
@@ -399,6 +421,8 @@ func _update_greased_indicator() -> void:
 		parts.append("G")
 	if has_burning:
 		parts.append("B")
+	if has_poisoned:
+		parts.append("P")
 
 	greased_label = Label.new()
 	greased_label.text = " ".join(parts)
@@ -408,11 +432,13 @@ func _update_greased_indicator() -> void:
 	greased_label.add_theme_constant_override("outline_size", 4)
 	greased_label.position = Vector2(4, 2)
 
-	if has_burning and not has_greased:
+	if has_poisoned and not has_greased and not has_burning:
+		greased_label.modulate = Color(0.35, 1.0, 0.35, 1.0)
+	elif has_burning and not has_greased and not has_poisoned:
 		greased_label.modulate = Color(1.0, 0.35, 0.1)
-	elif has_greased and not has_burning:
+	elif has_greased and not has_burning and not has_poisoned:
 		greased_label.modulate = Color(1, 1, 0.2)
 	else:
-		greased_label.modulate = Color(1.0, 0.75, 0.2)
+		greased_label.modulate = Color(0.9, 1.0, 0.55, 1.0)
 
 	add_child(greased_label)
