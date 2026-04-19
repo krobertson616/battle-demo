@@ -111,7 +111,7 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 	m.modifiers = []
 	m.instincts = []
 	m.equipped_modifiers = []
-	m.modifier_slots = 0
+	m.modifier_slots = get_upgrade_slot_count_for_level(1)
 
 	if id == "golem":
 		m.modifiers.append("taunt")
@@ -272,17 +272,19 @@ func reset_run_for_new_attempt() -> void:
 	bosses_cleared_this_run = 0
 	pending_extract_count = 0
 func can_add_modifier(monster: MonsterData, modifier_id: String) -> bool:
+	if monster == null:
+		return false
+
 	if monster.modifier_slots <= 0:
 		return false
 
-	if monster.equipped_modifiers.size() >= monster.modifier_slots:
+	if get_used_upgrade_slots(monster) >= monster.modifier_slots:
 		return false
 
 	if modifier_id in monster.equipped_modifiers:
 		return false
 
 	return true
-
 func add_equipped_modifier(monster: MonsterData, modifier_id: String) -> bool:
 	if not can_add_modifier(monster, modifier_id):
 		return false
@@ -441,21 +443,10 @@ func clear_selected_location() -> void:
 	selected_location_label = ""
 	active_node_type = ""
 func add_instinct_to_monster(monster: MonsterData, instinct: Dictionary) -> bool:
-	if monster == null:
+	if not can_add_instinct(monster, instinct):
 		return false
 
 	var instincts_array: Array = monster.instincts
-
-	for existing in instincts_array:
-		if typeof(existing) != TYPE_DICTIONARY:
-			continue
-
-		var existing_type := String(existing.get("type", ""))
-		var existing_rule := String(existing.get("rule", ""))
-
-		if existing_type == String(instinct.get("type", "")) and existing_rule == String(instinct.get("rule", "")):
-			return false
-
 	instincts_array.append(instinct)
 	monster.instincts = instincts_array
 	return true
@@ -780,6 +771,7 @@ func grant_monster_xp(monster: MonsterData, amount: int) -> void:
 
 		monster.xp -= needed
 		monster.level += 1
+		monster.modifier_slots = get_upgrade_slot_count_for_level(monster.level)
 		monster.attack += 1
 		monster.max_health += 1
 		monster.health = min(monster.max_health, monster.health + 1)
@@ -812,12 +804,13 @@ func _try_evolve_monster(monster: MonsterData) -> void:
 	monster.cost = evolved_template.cost
 	monster.evolves_to_id = evolved_template.evolves_to_id
 	monster.modifiers = evolved_template.modifiers.duplicate()
-	monster.modifier_slots = evolved_template.modifier_slots
+	monster.modifier_slots = get_upgrade_slot_count_for_level(old_level)
 
 	# Keep progression and attachments
 	monster.instincts = old_instincts
 	monster.equipped_modifiers = old_equipped
 	monster.level = old_level
+	monster.modifier_slots = get_upgrade_slot_count_for_level(monster.level)
 	monster.xp = old_xp
 
 	# Never let evolution feel like a downgrade
@@ -973,3 +966,33 @@ func add_instinct_reward_to_hand(instinct: Dictionary) -> void:
 		"card_type": "instinct",
 		"item": item
 	})
+func get_upgrade_slot_count_for_level(level: int) -> int:
+	var safe_level: int = max(1, level)
+	return min(3, 1 + int((safe_level - 1) / 5))
+
+
+func get_used_upgrade_slots(monster: MonsterData) -> int:
+	if monster == null:
+		return 0
+
+	return monster.equipped_modifiers.size() + monster.instincts.size()
+
+
+func can_add_instinct(monster: MonsterData, instinct: Dictionary) -> bool:
+	if monster == null:
+		return false
+
+	if get_used_upgrade_slots(monster) >= monster.modifier_slots:
+		return false
+
+	for existing in monster.instincts:
+		if typeof(existing) != TYPE_DICTIONARY:
+			continue
+
+		var existing_type := String(existing.get("type", ""))
+		var existing_rule := String(existing.get("rule", ""))
+
+		if existing_type == String(instinct.get("type", "")) and existing_rule == String(instinct.get("rule", "")):
+			return false
+
+	return true

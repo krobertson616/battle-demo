@@ -69,6 +69,13 @@ func _apply_data() -> void:
 	var shown_health: int = int(_data_get("health", 0))
 
 	var level: int = int(_data_get("level", 1))
+	var current_slots: int = int(_data_get("modifier_slots", 1))
+	var next_slot_level := -1
+
+	for test_level in range(level + 1, 21):
+		if GameState.get_upgrade_slot_count_for_level(test_level) > current_slots:
+			next_slot_level = test_level
+			break
 	var xp: int = int(_data_get("xp", 0))
 	var needed: int = GameState.get_xp_needed_for_next_level(level)
 
@@ -94,7 +101,10 @@ func _apply_data() -> void:
 		xp_bar.min_value = 0
 		xp_bar.max_value = 1
 		xp_bar.value = 1
-		xp_bar.tooltip_text = "Max level"
+		if next_slot_level != -1:
+			xp_bar.tooltip_text = "XP %d / %d\nNext slot at Lv.%d" % [xp, needed, next_slot_level]
+		else:
+			xp_bar.tooltip_text = "XP %d / %d\nMax slots reached" % [xp, needed]
 	else:
 		xp_bar.visible = true
 		xp_bar.min_value = 0
@@ -287,8 +297,12 @@ func _update_slots_label() -> void:
 	if _monster_data == null:
 		return
 
+	var total_slots: int = int(_data_get("modifier_slots", 0))
 	var equipped = _data_get("equipped_modifiers", [])
 	var instincts = _data_get("instincts", [])
+	var used_slots: int = equipped.size() + instincts.size()
+
+	_add_slot_chip(used_slots, total_slots)
 
 	for mod in equipped:
 		match String(mod):
@@ -486,3 +500,21 @@ func _update_greased_indicator() -> void:
 		greased_label.modulate = Color(0.9, 1.0, 0.55, 1.0)
 
 	add_child(greased_label)
+func _add_slot_chip(used: int, total: int) -> void:
+	var parts: Array[String] = []
+
+	for i in range(total):
+		if i < used:
+			parts.append("●")
+		else:
+			parts.append("○")
+
+	var chip := Label.new()
+	chip.text = "SLOTS " + " ".join(parts)
+	chip.tooltip_text = "Used %d / %d upgrade slots" % [used, total]
+	chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	chip.add_theme_font_size_override("font_size", 15)
+	chip.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	chip.add_theme_constant_override("outline_size", 4)
+
+	upgrade_chips.add_child(chip)
