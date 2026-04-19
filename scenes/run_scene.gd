@@ -826,7 +826,7 @@ func _on_continue_deeper_pressed() -> void:
 func _finish_run_after_extraction() -> void:
 	post_boss_panel.visible = false
 	GameState.end_run_to_map()
-	get_tree().change_scene_to_file("res://map_scene.tscn")
+	get_tree().change_scene_to_file("res://scenes/map_scene.tscn")
 	
 func _show_starter_panel() -> void:
 	for c in starter_choices_row.get_children():

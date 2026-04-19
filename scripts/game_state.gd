@@ -51,7 +51,7 @@ func _build_monster_pools() -> void:
 
 	all_monsters = [
 		_make("wolf", "Sheni", "Fang", 1, 2, 3, "alpha_wolf"),
-		_make("imp", "Imp", "Ember", 1, 3, 2, "fireling"),
+		_make("imp", "Imp", "Ember", 1, 99, 99, "fireling"),
 		_make("slime", "Slime", "Slime", 1, 2, 2, "superslime"),
 		_make("superslime", "King Slime", "Slime", 1, 1, 3, "none"),
 		_make("alpha_wolf", "Shen-Zi", "Fang", 3, 3, 3, "none"),
@@ -178,8 +178,18 @@ func clone_monster(template: MonsterData) -> MonsterData:
 func save_monster_to_roster(monster: MonsterData) -> void:
 	if monster == null:
 		return
-	saved_monsters.append(clone_monster(monster))
 
+	var saved_copy := clone_monster(monster)
+
+	# If this monster came from the roster, overwrite the old entry
+	if monster.has_meta("source_roster_index"):
+		var source_index := int(monster.get_meta("source_roster_index"))
+		if source_index >= 0 and source_index < saved_monsters.size():
+			saved_monsters[source_index] = saved_copy
+			return
+
+	# Otherwise it's a brand new monster, so add it
+	saved_monsters.append(saved_copy)
 func reset_run_for_new_attempt() -> void:
 	run_started = false
 
@@ -767,9 +777,14 @@ func start_new_run_from_map(location_id: String) -> void:
 	current_encounter_index = 0
 	run_started = true
 
-	var starters := get_selected_team_clones()
-	for i in range(min(starters.size(), board_monsters.size())):
-		board_monsters[i] = starters[i]
+	for i in range(min(selected_roster_indexes.size(), board_monsters.size())):
+		var roster_index := selected_roster_indexes[i]
+		if roster_index < 0 or roster_index >= saved_monsters.size():
+			continue
+
+		var starter := clone_monster(saved_monsters[roster_index])
+		starter.set_meta("source_roster_index", roster_index)
+		board_monsters[i] = starter
 
 
 func end_run_to_map() -> void:
