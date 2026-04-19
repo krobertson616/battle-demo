@@ -149,20 +149,6 @@ func _play_combat_events(events: Array) -> void:
 
 					_render_teams()
 					await get_tree().create_timer(0.12).timeout
-					combat_log.append_text("%s is greased!\n" % target_name)
-
-					if target_side == "enemy":
-						if target_index >= 0 and target_index < visual_enemy_team.size():
-							if not visual_enemy_team[target_index].modifiers.has("greased"):
-								visual_enemy_team[target_index].modifiers.append("greased")
-					elif target_side == "player":
-						if target_index >= 0 and target_index < visual_player_team.size():
-							if not visual_player_team[target_index].modifiers.has("greased"):
-								visual_player_team[target_index].modifiers.append("greased")
-
-					_render_teams()
-					await get_tree().create_timer(0.12).timeout
-
 			"status_removed":
 				var target_side: String = str(event.get("target_side", ""))
 				var target_name: String = str(event.get("target_name", ""))
@@ -170,14 +156,14 @@ func _play_combat_events(events: Array) -> void:
 				var status: String = str(event.get("status", ""))
 
 				if status == "greased" or status == "burning":
-					combat_log.append_text("%s is no longer greased.\n" % target_name)
+					combat_log.append_text("%s is no longer %s.\n" % [target_name, status])
 
 					if target_side == "enemy":
 						if target_index >= 0 and target_index < visual_enemy_team.size():
-							visual_enemy_team[target_index].modifiers.erase("greased")
+							visual_enemy_team[target_index].modifiers.erase(status)
 					elif target_side == "player":
 						if target_index >= 0 and target_index < visual_player_team.size():
-							visual_player_team[target_index].modifiers.erase("greased")
+							visual_player_team[target_index].modifiers.erase(status)
 
 					_render_teams()
 					await get_tree().create_timer(0.08).timeout
@@ -203,7 +189,10 @@ func _play_combat_events(events: Array) -> void:
 					]
 				)
 
-				_show_floating_damage(target_side, target_index, damage_amount)
+				if source == "burn":
+					_show_floating_burn_damage(target_side, target_index, damage_amount)
+				else:
+					_show_floating_damage(target_side, target_index, damage_amount)
 
 				if target_side == "enemy":
 					if target_index >= 0 and target_index < visual_enemy_team.size():
@@ -231,8 +220,9 @@ func _play_combat_events(events: Array) -> void:
 				_show_floating_damage(target_side, target_index, damage_amount)
 				if soaked:
 					_show_floating_soak(target_side, target_index, reduced_by)
-				await _animate_hit(target_side, target_index)
+					await _flash_soak(target_side, target_index)
 
+				await _animate_hit(target_side, target_index)
 				if target_side == "enemy":
 					if target_index >= 0 and target_index < visual_enemy_team.size():
 						visual_enemy_team[target_index].health = remaining_hp
@@ -449,5 +439,40 @@ func _show_floating_soak(side: String, index: int, amount: int) -> void:
 	var tween = create_tween()
 	tween.tween_property(label, "position", label.position + Vector2(0, -35), 0.45)
 	tween.parallel().tween_property(label, "modulate", Color(0.75, 0.9, 1.0, 0), 0.45)
+	await tween.finished
+	label.queue_free()
+func _show_floating_burn_damage(side: String, index: int, amount: int) -> void:
+	var holder = _get_holder_node(side, index)
+	if holder == null:
+		return
+
+	var label := Label.new()
+	label.text = "-%d" % amount
+	label.add_theme_font_size_override("font_size", 30)
+
+	# 🔥 Burn color (orange/red)
+	label.modulate = Color(1.0, 0.4, 0.1, 1.0)
+
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 6)
+
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(label)
+
+	var card_center = holder.get_global_position() + (holder.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-20, -40)
+
+	var tween = create_tween()
+
+	# Slightly different feel than normal damage
+	tween.tween_property(label, "position", label.position + Vector2(0, -50), 0.5)
+	tween.parallel().tween_property(label, "scale", Vector2(1.15, 1.15), 0.2)
+	tween.tween_property(label, "scale", Vector2(1, 1), 0.2)
+
+	# fade out
+	tween.parallel().tween_property(label, "modulate", Color(1.0, 0.4, 0.1, 0), 0.5)
+
 	await tween.finished
 	label.queue_free()

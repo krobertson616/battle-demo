@@ -199,7 +199,7 @@ func _update_modifier_label() -> void:
 			"burn":
 				parts.append("BURN")
 			"burning":
-				parts.append("BURNING")
+				pass
 			"regenerate":
 				parts.append("REGEN")
 			"pack_hunter":

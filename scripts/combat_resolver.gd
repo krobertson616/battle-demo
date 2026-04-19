@@ -258,15 +258,21 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				if int(p["health"]) > old_hp:
 					log_lines.append("%s regenerates 1 health" % p["name"])
 			if _has_modifier(p, "burning"):
-				p["health"] = max(0, int(p["health"]) - 1)
-				log_lines.append("%s takes 1 burn damage" % p["name"])
+				var burn_damage := 1
+
+				if _has_modifier(p, "greased"):
+					burn_damage += 1
+					log_lines.append("%s is greased and takes extra burn damage" % p["name"])
+
+				p["health"] = max(0, int(p["health"]) - burn_damage)
+				log_lines.append("%s takes %d burn damage" % [p["name"], burn_damage])
 
 				events.append({
 					"type": "dot_damage",
 					"target_side": "player",
 					"target_name": p["name"],
 					"target_index": p_attacker_index,
-					"amount": 1,
+					"amount": burn_damage,
 					"remaining_hp": p["health"],
 					"source": "burn"
 				})
@@ -328,11 +334,14 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 			if enemy_soaked:
 				log_lines.append("%s's Thick Hide reduces damage by %d" % [p_target["name"], enemy_blocked])
 			p_target["health"] = max(0, int(p_target["health"]) - damage_to_enemy)
+			print("PLAYER ATTACKER MODIFIERS: ", p.get("modifiers", []))
+			print("PLAYER TARGET MODIFIERS BEFORE BURN: ", p_target.get("modifiers", []))
 			if _has_modifier(p, "burn") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "burning"):
 				if not p_target.has("modifiers"):
 					p_target["modifiers"] = []
 
 				p_target["modifiers"].append("burning")
+				print("APPLIED BURNING TO: ", p_target["name"], " MODIFIERS NOW: ", p_target["modifiers"])
 				log_lines.append("%s sets %s on fire" % [p["name"], p_target["name"]])
 
 				events.append({
@@ -405,15 +414,21 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				if int(e["health"]) > old_hp:
 					log_lines.append("%s regenerates 1 health" % e["name"])
 			if _has_modifier(e, "burning"):
-				e["health"] = max(0, int(e["health"]) - 1)
-				log_lines.append("%s takes 1 burn damage" % e["name"])
+				var burn_damage := 1
+
+				if _has_modifier(e, "greased"):
+					burn_damage += 1
+					log_lines.append("%s is greased and takes extra burn damage" % e["name"])
+
+				e["health"] = max(0, int(e["health"]) - burn_damage)
+				log_lines.append("%s takes %d burn damage" % [e["name"], burn_damage])
 
 				events.append({
 					"type": "dot_damage",
 					"target_side": "enemy",
 					"target_name": e["name"],
 					"target_index": e_attacker_index,
-					"amount": 1,
+					"amount": burn_damage,
 					"remaining_hp": e["health"],
 					"source": "burn"
 				})
@@ -474,21 +489,23 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 			if player_soaked:
 				log_lines.append("%s's Thick Hide reduces damage by %d" % [e_target["name"], player_blocked])
-				e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
-				if _has_modifier(e, "burn") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "burning"):
-					if not e_target.has("modifiers"):
-						e_target["modifiers"] = []
 
-					e_target["modifiers"].append("burning")
-					log_lines.append("%s sets %s on fire" % [e["name"], e_target["name"]])
+			e_target["health"] = max(0, int(e_target["health"]) - damage_to_player)
 
-					events.append({
-						"type": "status_applied",
-						"target_side": "player",
-						"target_name": e_target["name"],
-						"target_index": e_target_index,
-						"status": "burning"
-					})
+			if _has_modifier(e, "burn") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "burning"):
+				if not e_target.has("modifiers"):
+					e_target["modifiers"] = []
+
+				e_target["modifiers"].append("burning")
+				log_lines.append("%s sets %s on fire" % [e["name"], e_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "player",
+					"target_name": e_target["name"],
+					"target_index": e_target_index,
+					"status": "burning"
+				})
 			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
 				if not e_target.has("modifiers"):
 					e_target["modifiers"] = []
