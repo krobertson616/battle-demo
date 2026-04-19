@@ -30,9 +30,7 @@ var extraction_picks_remaining: int = 0
 
 
 func _ready() -> void:
-	item_pool = _create_item_pool()
 	sell_strip.card_sold.connect(_on_card_sold_to_shop)
-	shop_row.card_sold.connect(_on_card_sold_to_shop)
 	continue_deeper_button.pressed.connect(_on_continue_deeper_pressed)
 	post_boss_panel.visible = false
 	GameState.sell_strip_ref = sell_strip
@@ -116,12 +114,9 @@ func roll_shop() -> void:
 	GameState.shop_monsters.clear()
 	GameState.shop_items.clear()
 
-	for i in range(3):
+	for i in range(4):
 		var template: MonsterData = GameState.shop_pool.pick_random()
 		GameState.shop_monsters.append(GameState.clone_monster(template))
-
-	GameState.shop_items.append(item_pool.pick_random())
-
 func refresh_ui() -> void:
 	top_bar.text = "Round %d   Gold: %d   Health: %d   Area: %s" % [
 	GameState.round_num,
@@ -142,7 +137,7 @@ func refresh_ui() -> void:
 
 # Shop
 	# Shop monsters
-	for i in range(3):
+	for i in range(4):
 		var m = null
 		if i < GameState.shop_monsters.size():
 			m = GameState.shop_monsters[i]
@@ -158,22 +153,7 @@ func refresh_ui() -> void:
 			slot.custom_minimum_size = Vector2(150, 180)
 			shop_row.add_child(slot)
 
-	# Shop item slot
-	var item = null
-	if GameState.shop_items.size() > 0:
-		item = GameState.shop_items[0]
 
-	if item != null:
-		var button := Button.new()
-		button.text = "%s\nCost: %d" % [item.display_name, item.cost]
-		button.custom_minimum_size = Vector2(150, 180)
-		button.pressed.connect(_buy_item.bind(0))
-		shop_row.add_child(button)
-	else:
-		var item_slot := PanelContainer.new()
-		item_slot.custom_minimum_size = Vector2(150, 180)
-		shop_row.add_child(item_slot)
-	
 
 	# Hand
 	# Hand
@@ -196,17 +176,8 @@ func refresh_ui() -> void:
 			if instinct_item == null:
 				continue
 
-			var card := Button.new()
-			card.text = "%s\nCost: %d\n%s" % [
-				instinct_item.display_name,
-				instinct_item.cost,
-				instinct_item.description
-			]
-			card.custom_minimum_size = Vector2(150, 180)
-
-			card.set_script(load("res://scripts/instinct_card.gd"))
+			var card = instinct_card_scene.instantiate()
 			card.setup(instinct_item, "hand", i)
-
 			hand_row.add_child(card)
 	# Board
 	for i in range(GameState.max_board_slots):

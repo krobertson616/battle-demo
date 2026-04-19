@@ -110,7 +110,7 @@ func _get_drag_data(_at_position: Vector2):
 	preview_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var preview_card := _build_drag_preview()
-	preview_card.position = Vector2(-75, -90)
+	preview_card.position = Vector2(-75, -90) # centers 150x180 card on cursor
 
 	preview_root.add_child(preview_card)
 	set_drag_preview(preview_root)
