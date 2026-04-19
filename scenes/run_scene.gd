@@ -34,6 +34,7 @@ func _ready() -> void:
 	sell_strip.card_sold.connect(_on_card_sold_to_shop)
 	shop_row.card_sold.connect(_on_card_sold_to_shop)
 	continue_deeper_button.pressed.connect(_on_continue_deeper_pressed)
+	post_boss_panel.visible = false
 	GameState.sell_strip_ref = sell_strip
 
 	reroll_btn.pressed.connect(_reroll)
@@ -41,30 +42,15 @@ func _ready() -> void:
 
 	_apply_pending_combat_result()
 
-	if not GameState.run_started:
-		GameState.gold = 3
-		GameState.health = 10
-		GameState.round_num = 1
-		GameState.max_board_slots = 3
+	if GameState.board_monsters.is_empty():
 		GameState.board_monsters = [null, null, null, null, null, null]
-		GameState.hand_monsters = []
-		GameState.shop_monsters = []
-		GameState.run_started = true
-		GameState.build_first_test_run()
-		GameState.map_nodes = GameState.build_test_map()
-		GameState.current_node_id = 0
-		GameState.selected_next_node_id = -1
-		GameState.hand_cards.clear()
 		
 		
 	if GameState.shop_monsters.is_empty():
 		roll_shop()
 		
 	refresh_ui()
-	if GameState.saved_monsters.size() > 0 and _get_current_board_count() == 0:
-		_show_starter_panel()
-	else:
-		starter_panel.visible = false
+	
 	if GameState.round_num == 1 and GameState.pending_result.is_empty():
 		add_log("Run started.")
 
@@ -117,8 +103,9 @@ func _apply_pending_combat_result() -> void:
 
 	if GameState.health <= 0:
 		add_log("[b][color=red]Run Over[/color][/b]")
-		start_btn.disabled = true
-		reroll_btn.disabled = true
+		GameState.end_run_to_map()
+		get_tree().change_scene_to_file("res://map_scene.tscn")
+		return
 
 	roll_shop()
 
@@ -838,8 +825,8 @@ func _on_continue_deeper_pressed() -> void:
 
 func _finish_run_after_extraction() -> void:
 	post_boss_panel.visible = false
-	GameState.reset_run_for_new_attempt()
-	get_tree().change_scene_to_file("res://scenes/run_scene.tscn")
+	GameState.end_run_to_map()
+	get_tree().change_scene_to_file("res://map_scene.tscn")
 	
 func _show_starter_panel() -> void:
 	for c in starter_choices_row.get_children():

@@ -53,17 +53,31 @@ mouse_filter = 2
 texture = ExtResource("2_ne7uw")
 expand_mode = 2
 
-[node name="TitleLabel" type="Label" parent="." unique_id=2145800517]
+[node name="MainVBox" type="VBoxContainer" parent="." unique_id=934406712]
 layout_mode = 0
 offset_right = 40.0
-offset_bottom = 23.0
+offset_bottom = 40.0
 
-[node name="CaveButton" type="Button" parent="." unique_id=476851839]
-layout_mode = 0
-offset_left = 90.0
-offset_top = 18.0
-offset_right = 533.0
-offset_bottom = 197.0
+[node name="TitleLabel" type="Label" parent="MainVBox" unique_id=2145800517]
+layout_mode = 2
+
+[node name="RosterLabel" type="Label" parent="MainVBox" unique_id=1475983545]
+layout_mode = 2
+
+[node name="RosterRow" type="HBoxContainer" parent="MainVBox" unique_id=1063016819]
+layout_mode = 2
+
+[node name="TeamLabel" type="Label" parent="MainVBox" unique_id=1434608692]
+layout_mode = 2
+
+[node name="TeamRow" type="HBoxContainer" parent="MainVBox" unique_id=982633027]
+layout_mode = 2
+
+[node name="ZoneButtons" type="HBoxContainer" parent="MainVBox" unique_id=737035102]
+layout_mode = 2
+
+[node name="CaveButton" type="Button" parent="MainVBox/ZoneButtons" unique_id=476851839]
+layout_mode = 2
 tooltip_text = "Cave"
 mouse_default_cursor_shape = 2
 theme_override_styles/normal = SubResource("StyleBoxEmpty_5m4q6")
@@ -73,12 +87,8 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_jlqwp")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_wwgyy")
 text = "Cave"
 
-[node name="ForestButton" type="Button" parent="." unique_id=1189131657]
-layout_mode = 0
-offset_left = 491.0
-offset_top = 193.0
-offset_right = 970.0
-offset_bottom = 470.0
+[node name="ForestButton" type="Button" parent="MainVBox/ZoneButtons" unique_id=1189131657]
+layout_mode = 2
 tooltip_text = "Forest"
 mouse_default_cursor_shape = 2
 theme_override_styles/normal = SubResource("StyleBoxEmpty_5gqha")
@@ -88,12 +98,8 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_f0c3g")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_od1u7")
 text = "Forest"
 
-[node name="CryptButton" type="Button" parent="." unique_id=1356317284]
-layout_mode = 0
-offset_left = 510.0
-offset_top = 537.0
-offset_right = 1054.0
-offset_bottom = 800.0
+[node name="CryptButton" type="Button" parent="MainVBox/ZoneButtons" unique_id=1356317284]
+layout_mode = 2
 tooltip_text = "Crypt"
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)

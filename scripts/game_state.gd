@@ -37,6 +37,9 @@ var saved_monsters: Array[MonsterData] = []
 var bosses_cleared_this_run: int = 0
 var pending_extract_count: int = 0
 
+var selected_roster_indexes: Array[int] = []
+
+
 func _ready() -> void:
 	randomize()
 	_build_monster_pools()
@@ -691,3 +694,99 @@ func can_feed_monster_to_target(feeder: MonsterData, target: MonsterData) -> boo
 		return true
 
 	return false
+
+
+func add_roster_monster_to_team(index: int) -> bool:
+	if index < 0 or index >= saved_monsters.size():
+		return false
+	if index in selected_roster_indexes:
+		return false
+	if selected_roster_indexes.size() >= 3:
+		return false
+
+	selected_roster_indexes.append(index)
+	return true
+
+
+func remove_roster_monster_from_team(index: int) -> void:
+	selected_roster_indexes.erase(index)
+
+
+func clear_selected_team() -> void:
+	selected_roster_indexes.clear()
+
+
+func get_selected_team_total_level() -> int:
+	var total := 0
+	for index in selected_roster_indexes:
+		if index >= 0 and index < saved_monsters.size():
+			total += saved_monsters[index].level
+	return total
+
+
+func get_selected_team_clones() -> Array[MonsterData]:
+	var team: Array[MonsterData] = []
+	for index in selected_roster_indexes:
+		if index >= 0 and index < saved_monsters.size():
+			team.append(clone_monster(saved_monsters[index]))
+	return team
+
+
+func start_new_run_from_map(location_id: String) -> void:
+	selected_location = location_id
+
+	match location_id:
+		"cave":
+			selected_location_label = "Cave"
+		"forest":
+			selected_location_label = "Forest"
+		"crypt":
+			selected_location_label = "Crypt"
+		_:
+			selected_location_label = location_id.capitalize()
+
+	gold = 3
+	health = 10
+	round_num = 1
+	max_board_slots = 3
+
+	board_monsters = [null, null, null, null, null, null]
+	hand_monsters = []
+	shop_monsters = []
+	hand_cards = []
+	shop_items = []
+
+	pending_player_team = []
+	pending_enemy_team = []
+	pending_result = {}
+
+	bosses_cleared_this_run = 0
+	pending_extract_count = 0
+
+	build_first_test_run()
+	current_encounter_index = 0
+	run_started = true
+
+	var starters := get_selected_team_clones()
+	for i in range(min(starters.size(), board_monsters.size())):
+		board_monsters[i] = starters[i]
+
+
+func end_run_to_map() -> void:
+	run_started = false
+
+	board_monsters = [null, null, null, null, null, null]
+	hand_monsters = []
+	shop_monsters = []
+	hand_cards = []
+	shop_items = []
+
+	pending_player_team = []
+	pending_enemy_team = []
+	pending_result = {}
+
+	current_encounter_index = 0
+	bosses_cleared_this_run = 0
+	pending_extract_count = 0
+
+	clear_selected_location()
