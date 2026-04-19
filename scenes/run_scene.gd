@@ -80,7 +80,7 @@ func _apply_pending_combat_result() -> void:
 					add_log("%s gained 1 XP." % m.display_name)
 
 		var cleared_encounter_id := GameState.get_current_encounter_id()
-		var was_boss := cleared_encounter_id.begins_with("boss")
+		var was_boss := "boss" in cleared_encounter_id
 
 		if cleared_encounter_id == "cave_elite_1":
 			GameState.max_board_slots = 4
