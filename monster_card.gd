@@ -223,6 +223,8 @@ func _update_modifier_label() -> void:
 				parts.append("PACK")
 			"oil":
 				parts.append("OIL")
+			"freeze": parts.append("FREEZE")
+			"frozen": pass
 			"poison": parts.append("POISON")
 			"poisoned": pass
 			"greased":
@@ -403,6 +405,7 @@ func _update_greased_indicator() -> void:
 	var has_greased := false
 	var has_burning := false
 	var has_poisoned := false
+	var has_frozen := false
 
 	for mod in modifiers:
 		match String(mod):
@@ -412,8 +415,10 @@ func _update_greased_indicator() -> void:
 				has_burning = true
 			"poisoned":
 				has_poisoned = true
+			"frozen":
+				has_frozen = true
 
-	if not has_greased and not has_burning and not has_poisoned:
+	if not has_greased and not has_burning and not has_poisoned and not has_frozen:
 		return
 
 	var parts: Array[String] = []
@@ -423,6 +428,8 @@ func _update_greased_indicator() -> void:
 		parts.append("B")
 	if has_poisoned:
 		parts.append("P")
+	if has_frozen:
+		parts.append("F")
 
 	greased_label = Label.new()
 	greased_label.text = " ".join(parts)
@@ -432,11 +439,13 @@ func _update_greased_indicator() -> void:
 	greased_label.add_theme_constant_override("outline_size", 4)
 	greased_label.position = Vector2(4, 2)
 
-	if has_poisoned and not has_greased and not has_burning:
+	if has_frozen and not has_greased and not has_burning and not has_poisoned:
+		greased_label.modulate = Color(0.55, 0.8, 1.0, 1.0)
+	elif has_poisoned and not has_greased and not has_burning and not has_frozen:
 		greased_label.modulate = Color(0.35, 1.0, 0.35, 1.0)
-	elif has_burning and not has_greased and not has_poisoned:
+	elif has_burning and not has_greased and not has_poisoned and not has_frozen:
 		greased_label.modulate = Color(1.0, 0.35, 0.1)
-	elif has_greased and not has_burning and not has_poisoned:
+	elif has_greased and not has_burning and not has_poisoned and not has_frozen:
 		greased_label.modulate = Color(1, 1, 0.2)
 	else:
 		greased_label.modulate = Color(0.9, 1.0, 0.55, 1.0)

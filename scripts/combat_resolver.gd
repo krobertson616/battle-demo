@@ -355,7 +355,36 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 					player_turn = false
 					continue
+			if _has_modifier(p, "frozen"):
+				if p.has("modifiers"):
+					p["modifiers"].erase("frozen")
 
+				log_lines.append("%s is frozen and skips the turn" % p["name"])
+
+				events.append({
+					"type": "status_removed",
+					"target_side": "player",
+					"target_name": p["name"],
+					"target_index": p_attacker_index,
+					"status": "frozen"
+				})
+
+				events.append({
+					"type": "skip_turn",
+					"side": "player",
+					"name": p["name"],
+					"target_index": p_attacker_index,
+					"reason": "frozen"
+				})
+
+				if not p_units.is_empty():
+					var next_p_index: int = p_attacker_index + 1
+					if next_p_index >= p_units.size():
+						next_p_index = 0
+					p_turn_index = next_p_index
+
+				player_turn = false
+				continue
 			var p_target: Dictionary = e_units[p_target_index]
 			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
 			events.append({
@@ -433,7 +462,20 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_index": p_target_index,
 					"status": "poisoned"
 				})
+			if _has_modifier(p, "freeze") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "frozen"):
+				if not p_target.has("modifiers"):
+					p_target["modifiers"] = []
 
+				p_target["modifiers"].append("frozen")
+				log_lines.append("%s freezes %s" % [p["name"], p_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "enemy",
+					"target_name": p_target["name"],
+					"target_index": p_target_index,
+					"status": "frozen"
+				})
 			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
 				if not p_target.has("modifiers"):
 					p_target["modifiers"] = []
@@ -583,7 +625,36 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 
 					player_turn = true
 					continue
+			if _has_modifier(e, "frozen"):
+				if e.has("modifiers"):
+					e["modifiers"].erase("frozen")
 
+				log_lines.append("%s is frozen and skips the turn" % e["name"])
+
+				events.append({
+					"type": "status_removed",
+					"target_side": "enemy",
+					"target_name": e["name"],
+					"target_index": e_attacker_index,
+					"status": "frozen"
+				})
+
+				events.append({
+					"type": "skip_turn",
+					"side": "enemy",
+					"name": e["name"],
+					"target_index": e_attacker_index,
+					"reason": "frozen"
+				})
+
+				if not e_units.is_empty():
+					var next_e_index: int = e_attacker_index + 1
+					if next_e_index >= e_units.size():
+						next_e_index = 0
+					e_turn_index = next_e_index
+
+				player_turn = true
+				continue
 			var e_target: Dictionary = p_units[e_target_index]
 			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
 			events.append({
@@ -661,7 +732,20 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_index": e_target_index,
 					"status": "poisoned"
 				})
+			if _has_modifier(e, "freeze") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "frozen"):
+				if not e_target.has("modifiers"):
+					e_target["modifiers"] = []
 
+				e_target["modifiers"].append("frozen")
+				log_lines.append("%s freezes %s" % [e["name"], e_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "player",
+					"target_name": e_target["name"],
+					"target_index": e_target_index,
+					"status": "frozen"
+				})
 			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
 				if not e_target.has("modifiers"):
 					e_target["modifiers"] = []

@@ -135,7 +135,7 @@ func _play_combat_events(events: Array) -> void:
 				var target_index: int = int(event.get("target_index", -1))
 				var status: String = str(event.get("status", ""))
 
-				if status == "greased" or status == "burning" or status == "poisoned":
+				if status == "greased" or status == "burning" or status == "poisoned" or status == "frozen":
 					combat_log.append_text("%s is %s!\n" % [target_name, status])
 
 					if target_side == "enemy":
@@ -155,7 +155,7 @@ func _play_combat_events(events: Array) -> void:
 				var target_index: int = int(event.get("target_index", -1))
 				var status: String = str(event.get("status", ""))
 
-				if status == "greased" or status == "burning" or status == "poisoned":
+				if status == "greased" or status == "burning" or status == "poisoned" or status == "frozen":
 					combat_log.append_text("%s is no longer %s.\n" % [target_name, status])
 
 					if target_side == "enemy":
@@ -175,6 +175,15 @@ func _play_combat_events(events: Array) -> void:
 					combat_log.append_text("%s dodges the attack!\n" % target_name)
 					_show_floating_miss(target_side, target_index)
 					await get_tree().create_timer(0.18).timeout
+			"skip_turn":
+				var side: String = str(event.get("side", ""))
+				var target_index: int = int(event.get("target_index", -1))
+				var name: String = str(event.get("name", ""))
+				var reason: String = str(event.get("reason", ""))
+
+				combat_log.append_text("%s skips the turn (%s)\n" % [name, reason])
+				_show_floating_skip(side, target_index, "FROZEN")
+				await get_tree().create_timer(0.35).timeout
 			"heal":
 				var target_side: String = str(event.get("target_side", ""))
 				var target_index: int = int(event.get("target_index", -1))
@@ -561,6 +570,32 @@ func _show_floating_poison_damage(side: String, index: int, amount: int) -> void
 	tween.parallel().tween_property(label, "scale", Vector2(1.12, 1.12), 0.2)
 	tween.tween_property(label, "scale", Vector2(1, 1), 0.2)
 	tween.parallel().tween_property(label, "modulate", Color(0.35, 1.0, 0.35, 0), 0.5)
+
+	await tween.finished
+	label.queue_free()
+func _show_floating_skip(side: String, index: int, text: String) -> void:
+	var holder = _get_holder_node(side, index)
+	if holder == null:
+		return
+
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 24)
+	label.modulate = Color(0.55, 0.8, 1.0, 1.0)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 6)
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	add_child(label)
+
+	var card_center = holder.get_global_position() + (holder.size / 2.0)
+	var local_pos = card_center - global_position
+	label.position = local_pos + Vector2(-35, -38)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -45), 0.5)
+	tween.parallel().tween_property(label, "modulate", Color(0.55, 0.8, 1.0, 0.0), 0.5)
 
 	await tween.finished
 	label.queue_free()
