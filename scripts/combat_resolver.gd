@@ -51,7 +51,13 @@ static func _has_other_living_tribe_ally(units: Array, self_index: int, tribe_na
 			return true
 	return false
 
+static func _get_attack_penalty(unit: Dictionary) -> int:
+	var penalty := 0
 
+	if _has_modifier(unit, "poisoned"):
+		penalty += 1
+
+	return penalty
 static func _get_all_modifiers(unit: Dictionary) -> Array:
 	var result: Array = []
 
@@ -318,6 +324,38 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					player_turn = false
 					continue
 
+			if _has_modifier(p, "poisoned"):
+				var poison_damage: int = 1
+
+				p["health"] = max(0, int(p["health"]) - poison_damage)
+				log_lines.append("%s takes %d poison damage" % [p["name"], poison_damage])
+
+				events.append({
+					"type": "dot_damage",
+					"target_side": "player",
+					"target_name": p["name"],
+					"target_index": p_attacker_index,
+					"amount": poison_damage,
+					"remaining_hp": p["health"],
+					"source": "poison"
+				})
+
+				if int(p["health"]) <= 0:
+					log_lines.append("%s dies from poison" % p["name"])
+					events.append({
+						"type": "death",
+						"side": "player",
+						"name": p["name"],
+						"target_index": p_attacker_index
+					})
+					p_units.remove_at(p_attacker_index)
+
+					if p_units.is_empty():
+						break
+
+					player_turn = false
+					continue
+
 			var p_target: Dictionary = e_units[p_target_index]
 			log_lines.append("%s attacks %s" % [p["name"], p_target["name"]])
 			events.append({
@@ -348,7 +386,11 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				player_turn = false
 				continue
 
-			var damage_to_enemy: int = int(p["attack"])
+			var p_attack_penalty: int = 1 if _has_modifier(p, "poisoned") else 0
+			if p_attack_penalty > 0:
+				log_lines.append("%s is weakened by poison (-1 attack)" % p["name"])
+
+			var damage_to_enemy: int = max(1, int(p["attack"]) - p_attack_penalty)
 			var original_damage_to_enemy: int = damage_to_enemy
 			var enemy_reduction: int = _get_damage_reduction(p_target)
 
@@ -375,6 +417,21 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_name": p_target["name"],
 					"target_index": p_target_index,
 					"status": "burning"
+				})
+
+			if _has_modifier(p, "poison") and int(p_target["health"]) > 0 and not _has_modifier(p_target, "poisoned"):
+				if not p_target.has("modifiers"):
+					p_target["modifiers"] = []
+
+				p_target["modifiers"].append("poisoned")
+				log_lines.append("%s poisons %s" % [p["name"], p_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "enemy",
+					"target_name": p_target["name"],
+					"target_index": p_target_index,
+					"status": "poisoned"
 				})
 
 			if _has_modifier(p, "oil") and not _has_modifier(p_target, "greased"):
@@ -495,6 +552,38 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					player_turn = true
 					continue
 
+			if _has_modifier(e, "poisoned"):
+				var poison_damage: int = 1
+
+				e["health"] = max(0, int(e["health"]) - poison_damage)
+				log_lines.append("%s takes %d poison damage" % [e["name"], poison_damage])
+
+				events.append({
+					"type": "dot_damage",
+					"target_side": "enemy",
+					"target_name": e["name"],
+					"target_index": e_attacker_index,
+					"amount": poison_damage,
+					"remaining_hp": e["health"],
+					"source": "poison"
+				})
+
+				if int(e["health"]) <= 0:
+					log_lines.append("%s dies from poison" % e["name"])
+					events.append({
+						"type": "death",
+						"side": "enemy",
+						"name": e["name"],
+						"target_index": e_attacker_index
+					})
+					e_units.remove_at(e_attacker_index)
+
+					if e_units.is_empty():
+						break
+
+					player_turn = true
+					continue
+
 			var e_target: Dictionary = p_units[e_target_index]
 			log_lines.append("%s attacks %s" % [e["name"], e_target["name"]])
 			events.append({
@@ -525,7 +614,11 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 				player_turn = true
 				continue
 
-			var damage_to_player: int = int(e["attack"])
+			var e_attack_penalty: int = 1 if _has_modifier(e, "poisoned") else 0
+			if e_attack_penalty > 0:
+				log_lines.append("%s is weakened by poison (-1 attack)" % e["name"])
+
+			var damage_to_player: int = max(1, int(e["attack"]) - e_attack_penalty)
 			var original_damage_to_player: int = damage_to_player
 			var player_reduction: int = _get_damage_reduction(e_target)
 
@@ -552,6 +645,21 @@ static func resolve_combat(player_team: Array, enemy_team: Array) -> Dictionary:
 					"target_name": e_target["name"],
 					"target_index": e_target_index,
 					"status": "burning"
+				})
+
+			if _has_modifier(e, "poison") and int(e_target["health"]) > 0 and not _has_modifier(e_target, "poisoned"):
+				if not e_target.has("modifiers"):
+					e_target["modifiers"] = []
+
+				e_target["modifiers"].append("poisoned")
+				log_lines.append("%s poisons %s" % [e["name"], e_target["name"]])
+
+				events.append({
+					"type": "status_applied",
+					"target_side": "player",
+					"target_name": e_target["name"],
+					"target_index": e_target_index,
+					"status": "poisoned"
 				})
 
 			if _has_modifier(e, "oil") and not _has_modifier(e_target, "greased"):
