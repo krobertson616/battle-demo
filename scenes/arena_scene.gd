@@ -366,9 +366,21 @@ func _set_background() -> void:
 	var texture: Texture2D
 	var encounter_id := GameState.get_current_encounter_id()
 
+	var cave_backgrounds: Array[Texture2D] = [
+		preload("res://assets/cave/cave.png"),
+		preload("res://assets/cave/cave2.png"),
+		preload("res://assets/cave/cave3.png"),
+		preload("res://assets/cave/cave4.png"),
+		preload("res://assets/cave/cave5.png"),
+		preload("res://assets/cave/cave6.png"),
+	]
+
 	match encounter_id:
 		"cave_1", "cave_2", "elite_1", "boss_1":
-			texture = preload("res://assets/cave.png")
+			if GameState.current_run_background_path != "":
+				texture = load(GameState.current_run_background_path)
+			else:
+				texture = preload("res://assets/cave/cave.png")
 		"forest_1":
 			texture = preload("res://assets/forest.png")
 		"crypt_1":

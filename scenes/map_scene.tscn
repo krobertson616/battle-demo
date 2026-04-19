@@ -61,16 +61,7 @@ offset_bottom = 40.0
 [node name="TitleLabel" type="Label" parent="MainVBox" unique_id=2145800517]
 layout_mode = 2
 
-[node name="RosterLabel" type="Label" parent="MainVBox" unique_id=1475983545]
-layout_mode = 2
-
-[node name="RosterRow" type="HBoxContainer" parent="MainVBox" unique_id=1063016819]
-layout_mode = 2
-
-[node name="TeamLabel" type="Label" parent="MainVBox" unique_id=1434608692]
-layout_mode = 2
-
-[node name="TeamRow" type="HBoxContainer" parent="MainVBox" unique_id=982633027]
+[node name="ViewRosterButton" type="Button" parent="MainVBox" unique_id=1919724231]
 layout_mode = 2
 
 [node name="ZoneButtons" type="HBoxContainer" parent="MainVBox" unique_id=737035102]
@@ -109,3 +100,32 @@ theme_override_styles/hover = SubResource("StyleBoxEmpty_xb8oc")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_c25he")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_rj0op")
 text = "Crypt"
+
+[node name="RosterPanel" type="PanelContainer" parent="." unique_id=57215356]
+layout_mode = 0
+offset_left = 255.0
+offset_top = 154.0
+offset_right = 892.0
+offset_bottom = 582.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="RosterPanel" unique_id=1370386846]
+layout_mode = 2
+
+[node name="RosterTitle" type="Label" parent="RosterPanel/VBoxContainer" unique_id=1183969779]
+layout_mode = 2
+
+[node name="RosterRow" type="HBoxContainer" parent="RosterPanel/VBoxContainer" unique_id=676062947]
+layout_mode = 2
+
+[node name="TeamLabel" type="Label" parent="RosterPanel/VBoxContainer" unique_id=1434608692]
+layout_mode = 2
+
+[node name="TeamRow" type="HBoxContainer" parent="RosterPanel/VBoxContainer" unique_id=982633027]
+layout_mode = 2
+
+[node name="CloseRosterButton" type="Button" parent="RosterPanel/VBoxContainer" unique_id=1259954979]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 8
+text = "Close"

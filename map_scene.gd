@@ -1,28 +1,44 @@
 extends Control
 
 @onready var title_label: Label = $MainVBox/TitleLabel
-@onready var roster_label: Label = $MainVBox/RosterLabel
-@onready var roster_row: HBoxContainer = $MainVBox/RosterRow
-@onready var team_label: Label = $MainVBox/TeamLabel
-@onready var team_row: HBoxContainer = $MainVBox/TeamRow
 
 @onready var cave_button: Button = $MainVBox/ZoneButtons/CaveButton
 @onready var forest_button: Button = $MainVBox/ZoneButtons/ForestButton
 @onready var crypt_button: Button = $MainVBox/ZoneButtons/CryptButton
-var monster_card_scene = preload("res://scenes/monster_card.tscn")
 
+@onready var view_roster_button: Button = $MainVBox/ViewRosterButton
+
+@onready var roster_panel: PanelContainer = $RosterPanel
+@onready var roster_label: Label = $RosterPanel/VBoxContainer/RosterTitle
+@onready var roster_row: HBoxContainer = $RosterPanel/VBoxContainer/RosterRow
+@onready var team_label: Label = $RosterPanel/VBoxContainer/TeamLabel
+@onready var team_row: HBoxContainer = $RosterPanel/VBoxContainer/TeamRow
+@onready var close_roster_button: Button = $RosterPanel/VBoxContainer/CloseRosterButton
+
+var monster_card_scene = preload("res://scenes/monster_card.tscn")
 func _ready() -> void:
 	title_label.text = "Choose Your Expedition"
-	cave_button.text = "Cave (Lv 1+)"
+	cave_button.text = "Cave (Fresh Run)"
 	forest_button.text = "Forest (Lv 10+)"
 	crypt_button.text = "Crypt (Lv 20+)"
+	view_roster_button.text = "View Saved Monsters"
 
 	cave_button.pressed.connect(_on_zone_pressed.bind("cave", 1))
 	forest_button.pressed.connect(_on_zone_pressed.bind("forest", 10))
 	crypt_button.pressed.connect(_on_zone_pressed.bind("crypt", 20))
 
-	_refresh_meta_ui()
+	view_roster_button.pressed.connect(_on_view_roster_pressed)
+	close_roster_button.pressed.connect(_on_close_roster_pressed)
 
+	roster_panel.visible = false
+	_refresh_roster_panel()
+func _on_view_roster_pressed() -> void:
+	_refresh_roster_panel()
+	roster_panel.visible = true
+
+
+func _on_close_roster_pressed() -> void:
+	roster_panel.visible = false
 func _make_monster_card_entry(monster: MonsterData, button_text: String, pressed_callback: Callable, setup_index: int) -> Control:
 	var wrapper := VBoxContainer.new()
 	wrapper.custom_minimum_size = Vector2(160, 240)
@@ -70,7 +86,7 @@ func _make_disabled_monster_card_entry(monster: MonsterData, label_text: String,
 	wrapper.add_child(info_label)
 
 	return wrapper
-func _refresh_meta_ui() -> void:
+func _refresh_roster_panel() -> void:
 	roster_label.text = "Saved Monsters"
 	team_label.text = "Expedition Team (%d / 3)   Total Level: %d" % [
 		GameState.selected_roster_indexes.size(),
@@ -86,17 +102,29 @@ func _refresh_meta_ui() -> void:
 	for i in range(GameState.saved_monsters.size()):
 		var monster: MonsterData = GameState.saved_monsters[i]
 
+		var wrapper := VBoxContainer.new()
+		wrapper.custom_minimum_size = Vector2(160, 240)
+
+		var card = monster_card_scene.instantiate()
+		card.custom_minimum_size = Vector2(150, 180)
+		card.setup(monster, "board", i)
+		if card is BaseButton:
+			card.disabled = true
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrapper.add_child(card)
+
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(150, 36)
+
 		if i in GameState.selected_roster_indexes:
-			var entry = _make_disabled_monster_card_entry(monster, "In Team", i)
-			roster_row.add_child(entry)
+			btn.text = "In Team"
+			btn.disabled = true
 		else:
-			var entry = _make_monster_card_entry(
-				monster,
-				"Add to Team",
-				_on_add_monster_to_team.bind(i),
-				i
-			)
-			roster_row.add_child(entry)
+			btn.text = "Add to Team"
+			btn.pressed.connect(_on_add_monster_to_team.bind(i))
+
+		wrapper.add_child(btn)
+		roster_row.add_child(wrapper)
 
 	for index in GameState.selected_roster_indexes:
 		if index < 0 or index >= GameState.saved_monsters.size():
@@ -104,37 +132,42 @@ func _refresh_meta_ui() -> void:
 
 		var monster: MonsterData = GameState.saved_monsters[index]
 
-		var entry = _make_monster_card_entry(
-			monster,
-			"Remove",
-			_on_remove_monster_from_team.bind(index),
-			index
-		)
-		team_row.add_child(entry)
+		var wrapper := VBoxContainer.new()
+		wrapper.custom_minimum_size = Vector2(160, 240)
 
+		var card = monster_card_scene.instantiate()
+		card.custom_minimum_size = Vector2(150, 180)
+		card.setup(monster, "board", index)
+		if card is BaseButton:
+			card.disabled = true
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrapper.add_child(card)
+
+		var btn := Button.new()
+		btn.text = "Remove"
+		btn.custom_minimum_size = Vector2(150, 36)
+		btn.pressed.connect(_on_remove_monster_from_team.bind(index))
+		wrapper.add_child(btn)
+
+		team_row.add_child(wrapper)
 func _on_add_monster_to_team(index: int) -> void:
 	GameState.add_roster_monster_to_team(index)
-	_refresh_meta_ui()
+	_refresh_roster_panel()
 
 
 func _on_remove_monster_from_team(index: int) -> void:
 	GameState.remove_roster_monster_from_team(index)
-	_refresh_meta_ui()
-
+	_refresh_roster_panel()
 
 func _on_zone_pressed(location_id: String, required_total_level: int) -> void:
-	# First-run test: allow Cave even with no saved monsters yet
-	if GameState.saved_monsters.is_empty():
-		if location_id != "cave":
-			title_label.text = "Beat Cave and extract a monster first."
-			return
-
+	# Cave is always a fresh run with no expedition team
+	if location_id == "cave":
 		GameState.clear_selected_team()
 		GameState.start_new_run_from_map("cave")
 		get_tree().change_scene_to_file("res://scenes/run_scene.tscn")
 		return
 
-	# Normal flow once you have extracted monsters
+	# Harder zones require a selected team
 	if GameState.selected_roster_indexes.is_empty():
 		title_label.text = "Pick at least one monster."
 		return

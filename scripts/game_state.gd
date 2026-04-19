@@ -38,6 +38,7 @@ var bosses_cleared_this_run: int = 0
 var pending_extract_count: int = 0
 
 var selected_roster_indexes: Array[int] = []
+var current_run_background_path: String = ""
 
 
 func _ready() -> void:
@@ -138,10 +139,10 @@ func build_first_test_run() -> void:
 	run_encounters = [
 		"cave_1",
 		"cave_2",
-		"forest_1",
-		"elite_1",
-		"crypt_1",
-		"boss_1",
+		"cave_3",
+		"cave_elite_1",
+		"cave_4",
+		"cave_boss_1",
 	]
 	current_encounter_index = 0
 func get_current_encounter_id() -> String:
@@ -486,7 +487,6 @@ func return_monster_instincts_to_hand(monster: MonsterData) -> void:
 	monster.instincts.clear()
 func build_enemy_team_for_encounter(encounter_id: String) -> Array:
 	match encounter_id:
-
 		"cave_1":
 			return [
 				create_enemy("slime"),
@@ -499,33 +499,32 @@ func build_enemy_team_for_encounter(encounter_id: String) -> Array:
 				create_enemy("bat")
 			]
 
-		"forest_1":
+		"cave_3":
 			return [
 				create_enemy("bat"),
 				create_enemy("bat")
 			]
 
-		"elite_1":
+		"cave_elite_1":
 			return [
 				create_enemy("tank"),
 				create_enemy("bat"),
 				create_enemy("bat")
 			]
 
-		"crypt_1":
+		"cave_4":
 			return [
 				create_enemy("slime"),
 				create_enemy("tank")
 			]
 
-		"boss_1":
+		"cave_boss_1":
 			return [
 				create_enemy("boss")
 			]
 
 		_:
 			return build_dummy_enemy_team()
-
 func create_enemy(type: String) -> Dictionary:
 	match type:
 
@@ -782,10 +781,23 @@ func start_new_run_from_map(location_id: String) -> void:
 		if roster_index < 0 or roster_index >= saved_monsters.size():
 			continue
 
-		var starter := clone_monster(saved_monsters[roster_index])
-		starter.set_meta("source_roster_index", roster_index)
-		board_monsters[i] = starter
+		if location_id != "cave":
+			var starters := get_selected_team_clones()
+			for starter_idx in range(min(starters.size(), board_monsters.size())):
+				board_monsters[starter_idx] = starters[starter_idx]
+		if location_id == "cave":
+			var cave_background_paths := [
+				"res://assets/cave/cave.png",
+				"res://assets/cave/cave2.png",
+				"res://assets/cave/cave3.png",
+				"res://assets/cave/cave4.png",
+				"res://assets/cave/cave5.png",
+				"res://assets/cave/cave6.png",
 
+			]
+			current_run_background_path = cave_background_paths.pick_random()
+		else:
+			current_run_background_path = ""
 
 func end_run_to_map() -> void:
 	run_started = false
