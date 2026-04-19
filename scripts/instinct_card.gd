@@ -102,12 +102,15 @@ func _get_drag_data(_at_position: Vector2):
 	if source_type != "hand":
 		return null
 
+	if is_instance_valid(GameState.sell_strip_ref):
+		GameState.sell_strip_ref.enable_drop_zone()
+
 	var preview_root := Control.new()
 	preview_root.custom_minimum_size = Vector2(1, 1)
 	preview_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var preview_card := _build_drag_preview()
-	preview_card.position = Vector2(-75, -90) # centers 150x180 card on cursor
+	preview_card.position = Vector2(-75, -90)
 
 	preview_root.add_child(preview_card)
 	set_drag_preview(preview_root)
@@ -118,6 +121,10 @@ func _get_drag_data(_at_position: Vector2):
 		"card_type": "instinct",
 		"item": item_data
 	}
+func _notification(what):
+	if what == NOTIFICATION_DRAG_END:
+		if is_instance_valid(GameState.sell_strip_ref):
+			GameState.sell_strip_ref.disable_drop_zone()
 func _build_drag_preview() -> Control:
 	var root := PanelContainer.new()
 	root.custom_minimum_size = Vector2(150, 180)

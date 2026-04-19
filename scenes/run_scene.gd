@@ -431,62 +431,45 @@ func _on_card_dropped_to_board(source_type: String, source_index: int, slot_inde
 		GameState.board_monsters[source_index] = temp
 
 	refresh_ui()
-func _on_card_sold_to_shop(source_type: String, source_index: int, dragged_monster: MonsterData = null) -> void:
-	print("SELL TRIGGERED: ", source_type, " ", source_index)
+func _on_card_sold_to_shop(card_type: String, source_type: String, source_index: int) -> void:
+	if source_index < 0:
+		return
 
-	if source_type == "hand":
-		var m: MonsterData = dragged_monster
-
-		if m == null:
-			if source_index < 0 or source_index >= GameState.hand_cards.size():
-				return
-
-			var fallback_entry = GameState.hand_cards[source_index]
-			if String(fallback_entry.get("card_type", "")) != "monster":
-				add_log("Only monster cards can be sold for now.")
-				return
-
-			m = fallback_entry.get("monster")
-
-		if m == null:
+	if card_type == "instinct":
+		if source_type != "hand":
+			return
+		if source_index >= GameState.hand_cards.size():
 			return
 
-		var remove_index := -1
-		for i in range(GameState.hand_cards.size()):
-			var entry = GameState.hand_cards[i]
-			if String(entry.get("card_type", "")) == "monster" and entry.get("monster") == m:
-				remove_index = i
-				break
-
-		if remove_index == -1:
+		var entry = GameState.hand_cards[source_index]
+		if String(entry.get("card_type", "")) != "instinct":
 			return
 
-		GameState.return_monster_instincts_to_hand(m)
-		GameState.hand_cards.remove_at(remove_index)
-
-		var old_index := GameState.hand_monsters.find(m)
-		if old_index != -1:
-			GameState.hand_monsters.remove_at(old_index)
-
-		GameState.gold += 1
-		add_log("Sold %s." % m.display_name)
+		GameState.hand_cards.remove_at(source_index)
+		add_log("Discarded instinct.")
 		refresh_ui()
 		return
 
-	if source_type == "board":
-		if source_index < 0 or source_index >= BOARD_SIZE:
+	if card_type == "monster":
+		if source_type == "board":
+			_sell(source_index)
 			return
 
-		var m = GameState.board_monsters[source_index]
-		if m == null:
-			return
+		if source_type == "hand":
+			if source_index >= GameState.hand_cards.size():
+				return
 
-		GameState.return_monster_instincts_to_hand(m)
-		GameState.board_monsters[source_index] = null
-		GameState.gold += 1
-		add_log("Sold %s." % m.display_name)
-		refresh_ui()
-		return
+			var entry = GameState.hand_cards[source_index]
+			if String(entry.get("card_type", "")) != "monster":
+				return
+
+			var m = entry.get("monster")
+			GameState.hand_cards.remove_at(source_index)
+			GameState.hand_monsters.erase(m)
+			GameState.gold += 1
+			add_log("Sold %s." % m.display_name)
+			refresh_ui()
+			return
 func _exit_tree() -> void:
 	if GameState.sell_strip_ref == sell_strip:
 		GameState.sell_strip_ref = null
