@@ -32,7 +32,7 @@ func _ready() -> void:
 	_apply_pending_combat_result()
 
 	if not GameState.run_started:
-		GameState.gold = 99
+		GameState.gold = 3
 		GameState.health = 10
 		GameState.round_num = 1
 		GameState.max_board_slots = 3
