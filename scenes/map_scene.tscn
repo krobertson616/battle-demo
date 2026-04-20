@@ -102,6 +102,7 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_rj0op")
 text = "Crypt"
 
 [node name="RosterPanel" type="PanelContainer" parent="." unique_id=57215356]
+visible = false
 layout_mode = 0
 offset_left = 255.0
 offset_top = 154.0

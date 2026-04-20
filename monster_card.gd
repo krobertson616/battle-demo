@@ -12,6 +12,7 @@ signal monster_dropped_on_card(source_type: String, source_index: int, slot_inde
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/ModifierLabel
 @onready var upgrade_chips: VBoxContainer = $PanelContainer/MarginContainer/VBoxContainer/UpgradeChips
 @onready var xp_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/ProgressBar
+@onready var atb_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/AtbBar
 
 var _monster_data = null
 var source_type: String = ""
@@ -519,3 +520,25 @@ func _add_slot_chip(used: int, total: int) -> void:
 	chip.add_theme_constant_override("outline_size", 4)
 
 	upgrade_chips.add_child(chip)
+func set_combat_ui(enabled: bool) -> void:
+	if atb_bar != null:
+		atb_bar.visible = enabled
+
+	# Hide XP bar in combat if you don't want both shown
+	if xp_bar != null:
+		xp_bar.visible = not enabled
+
+
+func set_atb(current: float, maximum: float, ready: bool = false) -> void:
+	if atb_bar == null:
+		return
+
+	atb_bar.min_value = 0.0
+	atb_bar.max_value = maximum
+	atb_bar.value = clamp(current, 0.0, maximum)
+	atb_bar.tooltip_text = "ATB %d / %d" % [int(current), int(maximum)]
+
+	if ready:
+		atb_bar.modulate = Color(0.65, 1.0, 0.65, 1.0)
+	else:
+		atb_bar.modulate = Color(1, 1, 1, 1)
