@@ -32,7 +32,11 @@ var item_pool: Array = []
 @onready var event_body_label: Label = $EventOverlay/EventPanel/VBoxContainer/EventBodyLabel
 @onready var event_choices_row: HBoxContainer = $EventOverlay/EventPanel/VBoxContainer/EventChoicesRow
 @onready var event_targets_row: HBoxContainer = $EventOverlay/EventPanel/VBoxContainer/EventTargetsRow
-
+@onready var remove_instinct_overlay: CenterContainer = $RemoveInstinctOverlay
+@onready var remove_instinct_panel: PanelContainer = $RemoveInstinctOverlay/RemoveInstinctPanel
+@onready var remove_instinct_title_label: Label = $RemoveInstinctOverlay/RemoveInstinctPanel/VBoxContainer/RemoveInstinctTitleLabel
+@onready var remove_instinct_choices_row: HBoxContainer = $RemoveInstinctOverlay/RemoveInstinctPanel/VBoxContainer/RemoveInstinctChoicesRow
+@onready var remove_instinct_cancel_button: Button = $RemoveInstinctOverlay/RemoveInstinctPanel/VBoxContainer/RemoveInstinctCancelButton
 
 var monster_card_scene = preload("res://scenes/monster_card.tscn")
 var board_slot_scene = preload("res://scenes/board_slot.tscn")
@@ -40,12 +44,16 @@ var instinct_card_scene = preload("res://scenes/instinct_card.tscn")
 var extraction_picks_remaining: int = 0
 var active_event_id: String = ""
 var active_event_mode: String = ""
+var pending_remove_instinct_hand_index: int = -1
+var pending_remove_instinct_target_slot: int = -1
 
 func _ready() -> void:
 	sell_strip.card_sold.connect(_on_card_sold_to_shop)
 	continue_deeper_button.pressed.connect(_on_continue_deeper_pressed)
 	post_boss_panel.visible = false
 	event_overlay.visible = false
+	remove_instinct_overlay.visible = false
+	remove_instinct_cancel_button.pressed.connect(_close_remove_instinct_overlay)
 	
 	GameState.sell_strip_ref = sell_strip
 
@@ -668,7 +676,13 @@ func _on_instinct_dropped_to_board(source_index: int, slot_index: int, source_ty
 		var item: ItemData = entry.get("item")
 		if item == null:
 			return
+		if item.instinct_rule == "remove_instinct":
+			if target_monster.instincts.is_empty():
+				add_log("%s has no instincts to remove." % target_monster.display_name)
+				return
 
+			_show_remove_instinct_picker(source_index, slot_index)
+			return
 		instinct_dict = {
 	"id": item.id,
 	"name": item.display_name,
@@ -899,6 +913,11 @@ func _show_event(encounter_id: String) -> void:
 			)
 			_add_event_choice_button("Gain +1 Slot", func(): _show_event_targets("camp_slot"))
 			_add_event_choice_button("Gain +2 XP", func(): _show_event_targets("camp_xp"))
+		"event_instinct_shop":
+			event_title_label.text = "Instinct Broker"
+			event_body_label.text = "A hooded trader offers rare instincts for gold."
+
+			_show_event_instinct_shop()
 
 	refresh_ui()
 
@@ -1003,3 +1022,139 @@ func _set_event_background(encounter_id: String) -> void:
 			event_background.texture = load("res://assets/cave/cave5.png")
 		_:
 			event_background.texture = null
+func _show_event_instinct_shop() -> void:
+	for c in event_choices_row.get_children():
+		c.queue_free()
+	for c in event_targets_row.get_children():
+		c.queue_free()
+
+	var picks: Array = []
+	var prune_instinct: Dictionary = GameState.get_instinct_dict_by_id("prune_instinct")
+	if not prune_instinct.is_empty():
+		picks.append(prune_instinct)
+
+	var random_pool: Array = GameState.get_instinct_shop_pool().duplicate(true)
+	random_pool = random_pool.filter(func(inst):
+		return String(inst.get("id", "")) != "prune_instinct"
+	)
+	random_pool.shuffle()
+
+	while picks.size() < 6 and not random_pool.is_empty():
+		picks.append(random_pool.pop_back())
+
+	var cost := 2
+
+	for i in range(picks.size()):
+		var instinct: Dictionary = picks[i]
+
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(220, 110)
+		btn.text = "%s (%dg)\n%s" % [
+			String(instinct.get("name", "Instinct")),
+			cost,
+			String(instinct.get("description", ""))
+		]
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.pressed.connect(func():
+			_buy_event_instinct(instinct, cost, btn)
+		)
+
+		if i < 3:
+			event_choices_row.add_child(btn)
+		else:
+			event_targets_row.add_child(btn)
+
+	var leave_btn := Button.new()
+	leave_btn.custom_minimum_size = Vector2(180, 70)
+	leave_btn.text = "Leave"
+	leave_btn.pressed.connect(_finish_event)
+	event_targets_row.add_child(leave_btn)
+func _buy_event_instinct(instinct: Dictionary, cost: int, btn: Button) -> void:
+	if GameState.gold < cost:
+		add_log("Not enough gold.")
+		return
+
+	if GameState.hand_cards.size() >= HAND_SIZE:
+		add_log("Hand full.")
+		return
+
+	GameState.gold -= cost
+	GameState.add_instinct_reward_to_hand(instinct)
+	add_log("Bought %s." % String(instinct.get("name", "Instinct")))
+
+	btn.disabled = true
+	refresh_ui()
+func _show_remove_instinct_picker(hand_index: int, slot_index: int) -> void:
+	pending_remove_instinct_hand_index = hand_index
+	pending_remove_instinct_target_slot = slot_index
+
+	remove_instinct_overlay.visible = true
+	start_btn.disabled = true
+	reroll_btn.disabled = true
+
+	for c in remove_instinct_choices_row.get_children():
+		c.queue_free()
+
+	var monster: MonsterData = GameState.board_monsters[slot_index]
+	if monster == null:
+		_close_remove_instinct_overlay()
+		return
+
+	remove_instinct_title_label.text = "Remove an instinct from %s" % monster.display_name
+
+	for inst in monster.instincts:
+		if typeof(inst) != TYPE_DICTIONARY:
+			continue
+
+		var inst_dict: Dictionary = inst
+		var instinct_id: String = String(inst_dict.get("id", ""))
+		var instinct_name: String = String(inst_dict.get("name", "Instinct"))
+		var instinct_desc: String = String(inst_dict.get("description", ""))
+
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(220, 100)
+		btn.text = "%s\n%s" % [instinct_name, instinct_desc]
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.pressed.connect(func(): _apply_remove_instinct_choice(instinct_id))
+		remove_instinct_choices_row.add_child(btn)
+
+
+func _apply_remove_instinct_choice(instinct_id: String) -> void:
+	if pending_remove_instinct_target_slot < 0 or pending_remove_instinct_target_slot >= BOARD_SIZE:
+		_close_remove_instinct_overlay()
+		return
+
+	if pending_remove_instinct_hand_index < 0 or pending_remove_instinct_hand_index >= GameState.hand_cards.size():
+		_close_remove_instinct_overlay()
+		return
+
+	var monster: MonsterData = GameState.board_monsters[pending_remove_instinct_target_slot]
+	if monster == null:
+		_close_remove_instinct_overlay()
+		return
+
+	var removed: Dictionary = GameState.remove_instinct_from_monster(monster, instinct_id)
+	if removed.is_empty():
+		_close_remove_instinct_overlay()
+		return
+
+	GameState.hand_cards.remove_at(pending_remove_instinct_hand_index)
+
+	add_log("%s was destroyed on %s." % [
+		String(removed.get("name", "Instinct")),
+		monster.display_name
+	])
+
+	_close_remove_instinct_overlay()
+	refresh_ui()
+
+
+func _close_remove_instinct_overlay() -> void:
+	remove_instinct_overlay.visible = false
+	start_btn.disabled = false
+	reroll_btn.disabled = false
+	pending_remove_instinct_hand_index = -1
+	pending_remove_instinct_target_slot = -1
+
+	for c in remove_instinct_choices_row.get_children():
+		c.queue_free()

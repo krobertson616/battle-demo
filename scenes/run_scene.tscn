@@ -173,3 +173,30 @@ alignment = 1
 [node name="EventTargetsRow" type="HBoxContainer" parent="EventOverlay/EventPanel/VBoxContainer" unique_id=1565351025]
 layout_mode = 2
 alignment = 1
+
+[node name="RemoveInstinctOverlay" type="CenterContainer" parent="." unique_id=1106488296]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RemoveInstinctPanel" type="PanelContainer" parent="RemoveInstinctOverlay" unique_id=1918866373]
+custom_minimum_size = Vector2(700, 200)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="RemoveInstinctOverlay/RemoveInstinctPanel" unique_id=310585145]
+layout_mode = 2
+
+[node name="RemoveInstinctTitleLabel" type="Label" parent="RemoveInstinctOverlay/RemoveInstinctPanel/VBoxContainer" unique_id=1828493809]
+layout_mode = 2
+
+[node name="RemoveInstinctChoicesRow" type="HBoxContainer" parent="RemoveInstinctOverlay/RemoveInstinctPanel/VBoxContainer" unique_id=486445288]
+layout_mode = 2
+alignment = 1
+
+[node name="RemoveInstinctCancelButton" type="Button" parent="RemoveInstinctOverlay/RemoveInstinctPanel/VBoxContainer" unique_id=713547124]
+layout_mode = 2
+size_flags_vertical = 8
+text = "Cancel"

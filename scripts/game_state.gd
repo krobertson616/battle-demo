@@ -201,12 +201,17 @@ func build_first_test_run() -> void:
 		"cave_2",
 		"event_crystal_infusion",
 		"cave_3",
-		"event_strange_totem",
+		"cave_4",
+		"event_instinct_shop",
+		"cave_5",
 		"cave_elite_1",
 		"event_ancient_camp",
-		"cave_4",
+		"cave_6",
+		"event_strange_totem",
+		"cave_7",
 		"cave_boss_1",
 	]
+	current_encounter_index = 0
 	current_encounter_index = 0
 	current_encounter_index = 0
 func get_current_encounter_id() -> String:
@@ -572,6 +577,16 @@ func get_instinct_shop_pool() -> Array:
 			"rule": "bonus_vs_frozen",
 			"value": 2,
 			"cost": 1
+		},
+		{
+			"shop_type": "instinct",
+			"id": "prune_instinct",
+			"name": "Prune Instinct",
+			"description": "Drag onto a creature to destroy one instinct on it.",
+			"type": "utility",
+			"rule": "remove_instinct",
+			"value": 1,
+			"cost": 1
 		}
 	]
 func add_instinct_to_hand(item: ItemData) -> void:
@@ -635,42 +650,63 @@ func build_enemy_team_for_encounter(encounter_id: String) -> Array:
 
 		"cave_3":
 			return [
-				create_enemy("bat"),
+				create_enemy("spider"),
+				create_enemy("slime")
+			]
+
+		"cave_4":
+			return [
+				create_enemy("moth"),
+				create_enemy("bat")
+			]
+
+		"cave_5":
+			return [
+				create_enemy("tank"),
+				create_enemy("spider"),
 				create_enemy("bat")
 			]
 
 		"cave_elite_1":
 			return [
 				create_enemy("tank"),
-				create_enemy("bat"),
-				create_enemy("bat")
+				create_enemy("shaman"),
+				create_enemy("raptor")
 			]
 
-		"cave_4":
+		"cave_6":
 			return [
 				create_enemy("slime"),
-				create_enemy("tank")
+				create_enemy("moth"),
+				create_enemy("raptor")
+			]
+
+		"cave_7":
+			return [
+				create_enemy("tank"),
+				create_enemy("spider"),
+				create_enemy("shaman")
 			]
 
 		"cave_boss_1":
 			return [
-				create_enemy("boss")
+				create_enemy("boss"),
+				create_enemy("moth")
 			]
 
 		_:
 			return build_dummy_enemy_team()
 func create_enemy(type: String) -> Dictionary:
 	match type:
-
 		"slime":
 			return {
 				"id": "slime",
-				"display_name": "Slime",
+				"display_name": "Cave Slime",
 				"attack": 1,
-				"health": 6,
-				"max_health": 6,
+				"health": 8,
+				"max_health": 8,
 				"tribe": "Slime",
-				"modifiers": [],
+				"modifiers": ["oil"],
 				"equipped_modifiers": [],
 				"instincts": [],
 				"texture": load("res://assets/caveslime.png")
@@ -679,22 +715,78 @@ func create_enemy(type: String) -> Dictionary:
 		"bat":
 			return {
 				"id": "bat",
-				"display_name": "Bat",
+				"display_name": "Ember Bat",
 				"attack": 2,
-				"health": 4,
-				"max_health": 4,
+				"health": 5,
+				"max_health": 5,
 				"tribe": "Beast",
-				"modifiers": [],
+				"modifiers": ["burn"],
 				"equipped_modifiers": [],
 				"instincts": [],
 				"texture": load("res://assets/cavebat.png")
+			}
+
+		"spider":
+			return {
+				"id": "spider",
+				"display_name": "Fang Spider",
+				"attack": 2,
+				"health": 7,
+				"max_health": 7,
+				"tribe": "Venom",
+				"modifiers": ["poison"],
+				"equipped_modifiers": [],
+				"instincts": [],
+				"texture": load("res://assets/spider.png")
+			}
+
+		"moth":
+			return {
+				"id": "moth",
+				"display_name": "Chill Moth",
+				"attack": 1,
+				"health": 8,
+				"max_health": 8,
+				"tribe": "Frost",
+				"modifiers": ["freeze"],
+				"equipped_modifiers": [],
+				"instincts": [],
+				"texture": load("res://assets/chillmoth.png")
+			}
+
+		"raptor":
+			return {
+				"id": "raptor",
+				"display_name": "Cave Raptor",
+				"attack": 2,
+				"health": 5,
+				"max_health": 5,
+				"tribe": "Skitter",
+				"modifiers": ["windfury"],
+				"equipped_modifiers": [],
+				"instincts": [],
+				"texture": load("res://assets/CaveRaptor.png")
+			}
+
+		"shaman":
+			return {
+				"id": "shaman",
+				"display_name": "Cave Shaman",
+				"attack": 1,
+				"health": 9,
+				"max_health": 9,
+				"tribe": "Grove",
+				"modifiers": ["heal"],
+				"equipped_modifiers": [],
+				"instincts": [],
+				"texture": load("res://assets/mossmender.png")
 			}
 
 		"tank":
 			return {
 				"id": "tank",
 				"display_name": "Stone Guard",
-				"attack": 2,
+				"attack": 1,
 				"health": 14,
 				"max_health": 14,
 				"tribe": "Construct",
@@ -709,8 +801,8 @@ func create_enemy(type: String) -> Dictionary:
 				"id": "boss",
 				"display_name": "Cave Brute",
 				"attack": 4,
-				"health": 24,
-				"max_health": 24,
+				"health": 28,
+				"max_health": 28,
 				"tribe": "Beast",
 				"modifiers": [],
 				"equipped_modifiers": [],
@@ -911,7 +1003,9 @@ func start_new_run_from_map(location_id: String) -> void:
 	shop_monsters = []
 	hand_cards = []
 	shop_items = []
-
+	var prune_instinct := get_instinct_dict_by_id("prune_instinct")
+	if not prune_instinct.is_empty():
+		add_instinct_reward_to_hand(prune_instinct)
 	pending_player_team = []
 	pending_enemy_team = []
 	pending_result = {}
@@ -1088,3 +1182,27 @@ func add_random_instinct_reward_to_hand() -> Dictionary:
 	var instinct: Dictionary = picks[0]
 	add_instinct_reward_to_hand(instinct)
 	return instinct
+func remove_instinct_from_monster(monster: MonsterData, instinct_id: String) -> Dictionary:
+	if monster == null:
+		return {}
+
+	var instincts_array: Array = monster.instincts
+
+	for i in range(instincts_array.size()):
+		var inst = instincts_array[i]
+
+		if typeof(inst) == TYPE_DICTIONARY:
+			var inst_dict: Dictionary = inst
+			if String(inst_dict.get("id", "")) == instinct_id:
+				var removed: Dictionary = inst_dict.duplicate(true)
+				instincts_array.remove_at(i)
+				monster.instincts = instincts_array
+				return removed
+
+	return {}
+	
+func get_instinct_dict_by_id(instinct_id: String) -> Dictionary:
+	for instinct in get_instinct_shop_pool():
+		if String(instinct.get("id", "")) == instinct_id:
+			return instinct.duplicate(true)
+	return {}
