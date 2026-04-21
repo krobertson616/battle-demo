@@ -63,6 +63,7 @@ var pending_drag_started: bool = false
 var pending_drag_start_pos: Vector2 = Vector2.ZERO
 
 const DRAG_START_DISTANCE: float = 18.0
+const INSTINCT_COOLDOWN_TURNS: int = 3
 
 func _ready() -> void:
 	randomize()
@@ -850,8 +851,23 @@ func _monster_to_battle_unit(monster, side: String, index: int) -> Dictionary:
 	elif monster.display_name == "Imp":
 		instinct_id = "ignite"
 		target_rule = "lowest_hp"
-		action_rule = "use_instinct_first"
+		action_rule = "attack_only"
 		base_speed = 42.0
+	elif monster.display_name == "Slime":
+		instinct_id = "oil"
+		target_rule = "lowest_hp"
+		action_rule = "attack_only"
+		base_speed = 32.0
+	elif monster.display_name == "Frost Wisp":
+		instinct_id = "freeze"
+		target_rule = "lowest_hp"
+		action_rule = "attack_only"
+		base_speed = 38.0
+	elif monster.display_name == "Fang Adder":
+		instinct_id = "poison"
+		target_rule = "lowest_hp"
+		action_rule = "attack_only"
+		base_speed = 36.0
 
 	var speed_roll: float = randf_range(-3.0, 3.0)
 	var final_speed: float = maxf(20.0, base_speed + speed_roll)
@@ -880,7 +896,21 @@ func _monster_to_battle_unit(monster, side: String, index: int) -> Dictionary:
 		"ready_time": 0.0,
 		"speed": final_speed,
 		"queued_target_index": -1,
+		"instinct_cooldown_remaining": 0,
+		"used_instinct_this_action": false,
 	}
+func _get_instinct_cooldown_remaining(unit: Dictionary) -> int:
+	return int(unit.get("instinct_cooldown_remaining", 0))
+
+
+func _get_instinct_button_display_text(unit: Dictionary) -> String:
+	var base_text := _get_instinct_button_text(unit)
+	var cooldown := _get_instinct_cooldown_remaining(unit)
+
+	if cooldown > 0:
+		return "%s (%d)" % [base_text, cooldown]
+
+	return base_text
 func _get_taunting_player_index() -> int:
 	for i in range(player_units.size()):
 		var unit = player_units[i]
@@ -1095,6 +1125,19 @@ func _auto_enemy_action(index: int) -> void:
 		action_in_progress = false
 		return
 
+	var skipped := await _resolve_pre_action_statuses("enemy", index)
+	if skipped:
+		_finish_unit_action("enemy", index)
+		return
+
+	if battle_over:
+		action_in_progress = false
+		return
+
+	if index < 0 or index >= enemy_units.size():
+		action_in_progress = false
+		return
+
 	var attacker = enemy_units[index]
 	if int(attacker["health"]) <= 0:
 		_finish_unit_action("enemy", index)
@@ -1239,12 +1282,12 @@ func _on_instinct_pressed() -> void:
 	if instinct_id == "":
 		return
 
-	if instinct_id == "taunt":
-		if bool(unit.get("instinct_used", false)):
-			turn_info_label.text = "%s already used Taunt" % unit["name"]
-			combat_log.append_text("%s already used Taunt this battle.\n" % unit["name"])
-			return
+	var cooldown := _get_instinct_cooldown_remaining(unit)
+	if cooldown > 0:
+		turn_info_label.text = "%s is on cooldown for %d more turns" % [unit["name"], cooldown]
+		return
 
+	if instinct_id == "taunt":
 		unit["queued_action"] = "taunt"
 		selected_action = ""
 		drag_assigning = false
@@ -1257,6 +1300,30 @@ func _on_instinct_pressed() -> void:
 		_refresh_cards_light()
 		_update_target_lines()
 		return
+
+	var existing_target_index: int = int(unit.get("queued_target_index", -1))
+	if existing_target_index >= 0 and existing_target_index < enemy_units.size() and int(enemy_units[existing_target_index]["health"]) > 0:
+		unit["queued_action"] = instinct_id
+		selected_action = ""
+
+		turn_info_label.text = "%s will use %s on %s" % [
+			unit["name"],
+			_get_instinct_button_text(unit),
+			enemy_units[existing_target_index]["name"]
+		]
+		combat_log.append_text("%s will use %s on %s.\n" % [
+			unit["name"],
+			_get_instinct_button_text(unit),
+			enemy_units[existing_target_index]["name"]
+		])
+
+		_refresh_cards_light()
+		_update_target_lines()
+		return
+
+	selected_action = "queue_instinct"
+	turn_info_label.text = "Drag an enemy to queue %s" % _get_instinct_button_text(unit)
+	_refresh_visual_units()
 func _perform_player_instinct(target_index: int) -> void:
 	if ready_side != "player":
 		return
@@ -1421,6 +1488,19 @@ func _finish_unit_action(side: String, index: int) -> void:
 	if index < 0 or index >= units.size():
 		return
 
+	var used_instinct_this_action := bool(units[index].get("used_instinct_this_action", false))
+	var cooldown_remaining := int(units[index].get("instinct_cooldown_remaining", 0))
+
+	if used_instinct_this_action:
+		units[index]["instinct_cooldown_remaining"] = INSTINCT_COOLDOWN_TURNS
+		units[index]["used_instinct_this_action"] = false
+	else:
+		if cooldown_remaining > 0:
+			units[index]["instinct_cooldown_remaining"] = max(0, cooldown_remaining - 1)
+
+	if side == "player":
+		units[index]["queued_action"] = ""
+
 	units[index]["atb"] = 0.0
 	units[index]["is_ready"] = false
 	units[index]["ready_time"] = 0.0
@@ -1440,6 +1520,7 @@ func _finish_unit_action(side: String, index: int) -> void:
 	attack_button.disabled = true
 	defend_button.disabled = true
 	instinct_button.disabled = true
+	instinct_button.text = "Instinct"
 	_clear_target_buttons()
 	_refresh_cards_light()
 func _on_pause_pressed() -> void:
@@ -1470,25 +1551,47 @@ func _auto_player_action(index: int) -> void:
 		action_in_progress = false
 		return
 
-	var attacker = player_units[index]
-
-	if int(attacker["health"]) <= 0:
+	if int(player_units[index]["health"]) <= 0:
 		_finish_unit_action("player", index)
 		return
 
-	if not bool(attacker["is_ready"]):
+	if not bool(player_units[index]["is_ready"]):
 		action_in_progress = false
 		return
 
-	var queued_action := str(attacker.get("queued_action", ""))
+	var skipped := await _resolve_pre_action_statuses("player", index)
+	if skipped:
+		_finish_unit_action("player", index)
+		return
+
+	if index < 0 or index >= player_units.size():
+		action_in_progress = false
+		return
+
+	if int(player_units[index]["health"]) <= 0:
+		return
+
+	var queued_action := str(player_units[index].get("queued_action", ""))
+	var cooldown_remaining := _get_instinct_cooldown_remaining(player_units[index])
+
+	# If cooldown is active, clear any stale queued instinct and fall back to attack.
+	if cooldown_remaining > 0 and queued_action != "":
+		player_units[index]["queued_action"] = ""
+		queued_action = ""
+
 	if queued_action == "taunt":
-		if not bool(attacker.get("instinct_used", false)):
-			await _perform_player_taunt_from_index(index)
+		await _perform_player_taunt_from_index(index)
+		return
+
+	if queued_action == "ignite" or queued_action == "burn" or queued_action == "oil" or queued_action == "freeze" or queued_action == "poison":
+		var queued_target_index: int = int(player_units[index].get("queued_target_index", -1))
+		if queued_target_index >= 0 and queued_target_index < enemy_units.size() and int(enemy_units[queued_target_index]["health"]) > 0:
+			await _perform_player_targeted_instinct_from_index(index, queued_target_index, queued_action)
 			return
 		else:
-			attacker["queued_action"] = ""
+			player_units[index]["queued_action"] = ""
 
-	var target_index: int = int(attacker.get("queued_target_index", -1))
+	var target_index: int = int(player_units[index].get("queued_target_index", -1))
 
 	if target_index < 0 or target_index >= enemy_units.size() or int(enemy_units[target_index]["health"]) <= 0:
 		target_index = _get_random_alive_index(enemy_units)
@@ -1623,29 +1726,48 @@ func _finish_drag_target_assignment() -> void:
 		_update_target_lines()
 		return
 
+	var assigning_player_index := drag_start_player_index
 	var release_enemy_index := _get_enemy_index_under_mouse()
+	var had_valid_assignment := false
 
 	if release_enemy_index >= 0 and release_enemy_index < enemy_units.size():
 		if int(enemy_units[release_enemy_index]["health"]) > 0:
-			player_units[drag_start_player_index]["queued_target_index"] = release_enemy_index
-
-			var attacker = player_units[drag_start_player_index]
+			var attacker = player_units[assigning_player_index]
 			var defender = enemy_units[release_enemy_index]
 
-			combat_log.append_text("%s will focus %s.\n" % [attacker["name"], defender["name"]])
-			turn_info_label.text = "%s will target %s" % [attacker["name"], defender["name"]]
+			player_units[assigning_player_index]["queued_target_index"] = release_enemy_index
+			had_valid_assignment = true
+
+			if selected_action == "queue_instinct":
+				var instinct_id := str(attacker.get("instinct_id", ""))
+				player_units[assigning_player_index]["queued_action"] = instinct_id
+				combat_log.append_text("%s will use %s on %s.\n" % [
+					attacker["name"],
+					_get_instinct_button_text(attacker),
+					defender["name"]
+				])
+				turn_info_label.text = "%s will %s %s" % [
+					attacker["name"],
+					_get_instinct_button_text(attacker),
+					defender["name"]
+				]
+			else:
+				player_units[assigning_player_index]["queued_action"] = ""
+				combat_log.append_text("%s will focus %s.\n" % [attacker["name"], defender["name"]])
+				turn_info_label.text = "%s will target %s" % [attacker["name"], defender["name"]]
 
 	drag_assigning = false
 	drag_start_player_index = -1
 	drag_hover_enemy_index = -1
-	manual_selected_player_index = -1
 	selected_action = ""
 
-	attack_button.disabled = true
-	defend_button.disabled = true
-	instinct_button.disabled = true
-	instinct_button.text = "Instinct"
+	# Keep the acting unit selected after assignment so the player can press Oil/Ignite/etc.
+	if had_valid_assignment:
+		manual_selected_player_index = assigning_player_index
+	else:
+		manual_selected_player_index = -1
 
+	_refresh_selected_unit_buttons()
 	_refresh_visual_units()
 	_update_target_lines()
 func _get_holder_center_local(side: String, index: int) -> Vector2:
@@ -1796,22 +1918,27 @@ func _get_player_intent_text(index: int) -> String:
 	var instinct_id := str(unit.get("instinct_id", ""))
 	var queued_action := str(unit.get("queued_action", ""))
 	var target_index: int = int(unit.get("queued_target_index", -1))
+	var cooldown := _get_instinct_cooldown_remaining(unit)
 
-	if queued_action == "taunt" and not bool(unit.get("instinct_used", false)):
+	if cooldown > 0:
+		return "COOLDOWN: %d" % cooldown
+
+	if queued_action == "taunt":
 		return "QUEUED: TAUNT"
 
+	if queued_action == "ignite" or queued_action == "burn" or queued_action == "oil" or queued_action == "freeze" or queued_action == "poison":
+		if target_index >= 0 and target_index < enemy_units.size() and int(enemy_units[target_index]["health"]) > 0:
+			return "QUEUED: %s %s" % [
+				queued_action.capitalize(),
+				enemy_units[target_index]["name"]
+			]
+		return "QUEUED: %s" % queued_action.capitalize()
+
 	if bool(unit.get("is_ready", false)):
-		if instinct_id == "ignite":
-			return "READY: IGNITE"
-		if instinct_id == "taunt" and not bool(unit.get("instinct_used", false)):
-			return "READY: TAUNT"
 		return "READY: ATTACK"
 
 	if target_index >= 0 and target_index < enemy_units.size() and int(enemy_units[target_index]["health"]) > 0:
 		return "TARGET: %s" % enemy_units[target_index]["name"]
-
-	if instinct_id == "ignite":
-		return "AUTO: IGNITE"
 
 	return "AUTO: ATTACK"
 func _get_enemy_intent_text(index: int) -> String:
@@ -1866,17 +1993,19 @@ func _update_card_from_unit(side: String, index: int) -> void:
 			float(unit["atb_max"])
 		)
 	else:
-		# Fallback
 		if card.has_method("setup"):
 			card.setup(copy)
-		if card.has_method("set_intent_text"):
-			card.set_intent_text(intent_text)
-		if card.has_method("set_atb"):
-			card.set_atb(
-				float(unit["atb"]),
-				float(unit["atb_max"]),
-				bool(unit["is_ready"])
-			)
+
+	# Force intent text every time, even on the live-combat snapshot path.
+	if card.has_method("set_intent_text"):
+		card.set_intent_text(intent_text)
+
+	if card.has_method("set_atb"):
+		card.set_atb(
+			float(unit["atb"]),
+			float(unit["atb_max"]),
+			bool(unit["is_ready"])
+		)
 
 	if int(unit["health"]) <= 0:
 		card.modulate = Color(1, 1, 1, 0.35)
@@ -1896,22 +2025,17 @@ func _perform_player_taunt_from_index(attacker_index: int) -> void:
 		action_in_progress = false
 		return
 
+	if int(player_units[attacker_index]["health"]) <= 0:
+		_finish_unit_action("player", attacker_index)
+		return
+
+	player_units[attacker_index]["used_instinct_this_action"] = true
+	player_units[attacker_index]["queued_action"] = ""
+	player_units[attacker_index]["is_taunting"] = true
+
 	var attacker = player_units[attacker_index]
 
-	if int(attacker["health"]) <= 0:
-		_finish_unit_action("player", attacker_index)
-		return
-
-	if bool(attacker.get("instinct_used", false)):
-		attacker["queued_action"] = ""
-		_finish_unit_action("player", attacker_index)
-		return
-
 	combat_log.append_text("%s uses Taunt!\n" % attacker["name"])
-
-	attacker["instinct_used"] = true
-	attacker["queued_action"] = ""
-	attacker["is_taunting"] = true
 
 	var attacker_mods: Array = attacker.get("modifiers", []).duplicate()
 	if not attacker_mods.has("taunt"):
@@ -1932,10 +2056,14 @@ func _get_instinct_button_text(unit: Dictionary) -> String:
 			return "Taunt"
 		"ignite":
 			return "Ignite"
-		"heal":
-			return "Heal"
+		"oil":
+			return "Oil"
 		"freeze":
 			return "Freeze"
+		"burn":
+			return "Burn"
+		"poison":
+			return "Poison"
 		"":
 			return "Instinct"
 		_:
@@ -1967,10 +2095,10 @@ func _select_player_card(index: int) -> void:
 	defend_button.disabled = false
 
 	var instinct_id := str(unit.get("instinct_id", ""))
-	var instinct_used := bool(unit.get("instinct_used", false))
+	var cooldown := _get_instinct_cooldown_remaining(unit)
 
-	instinct_button.text = _get_instinct_button_text(unit)
-	instinct_button.disabled = instinct_id == "" or (instinct_id == "taunt" and instinct_used)
+	instinct_button.text = _get_instinct_button_display_text(unit)
+	instinct_button.disabled = instinct_id == "" or cooldown > 0
 
 	turn_info_label.text = "Choose action for %s" % unit["name"]
 	combat_log.append_text("%s selected.\n" % unit["name"])
@@ -2004,3 +2132,186 @@ func _set_battle_paused_state(paused: bool) -> void:
 
 	_update_pause_dim()
 	_update_battle_ui_visibility()
+	
+func _unit_has_modifier(unit: Dictionary, modifier_id: String) -> bool:
+	var mods: Array = unit.get("modifiers", [])
+	return mods.has(modifier_id)
+
+
+func _add_modifier_to_unit(unit: Dictionary, modifier_id: String) -> void:
+	var mods: Array = unit.get("modifiers", []).duplicate()
+	if not mods.has(modifier_id):
+		mods.append(modifier_id)
+	unit["modifiers"] = mods
+
+
+func _remove_modifier_from_unit(unit: Dictionary, modifier_id: String) -> void:
+	var mods: Array = unit.get("modifiers", []).duplicate()
+	mods.erase(modifier_id)
+	unit["modifiers"] = mods
+func _resolve_pre_action_statuses(side: String, index: int) -> bool:
+	var units = player_units if side == "player" else enemy_units
+
+	if index < 0 or index >= units.size():
+		return true
+
+	var unit = units[index]
+	if int(unit["health"]) <= 0:
+		return true
+
+	var skipped := false
+
+	if _unit_has_modifier(unit, "burning"):
+		var burn_damage := 1
+		unit["health"] = max(0, int(unit["health"]) - burn_damage)
+
+		combat_log.append_text("%s takes %d burn damage (%d HP left)\n" % [
+			unit["name"], burn_damage, unit["health"]
+		])
+
+		_show_floating_burn_damage(side, index, burn_damage)
+		_update_card_from_unit(side, index)
+		_update_atb_bars()
+		_update_target_lines()
+
+		if int(unit["health"]) <= 0:
+			await _handle_unit_death(side, index)
+			return true
+
+		await get_tree().create_timer(0.18).timeout
+
+	if _unit_has_modifier(unit, "frozen"):
+		combat_log.append_text("%s is frozen and loses the turn!\n" % unit["name"])
+		_show_floating_skip(side, index, "FROZEN")
+
+		_remove_modifier_from_unit(unit, "frozen")
+		_update_card_from_unit(side, index)
+		_update_atb_bars()
+		_update_target_lines()
+
+		await get_tree().create_timer(0.25).timeout
+		skipped = true
+	
+	if _unit_has_modifier(unit, "poisoned"):
+		var poison_damage := 1
+		unit["health"] = max(0, int(unit["health"]) - poison_damage)
+
+		combat_log.append_text("%s takes %d poison damage (%d HP left)\n" % [
+			unit["name"], poison_damage, unit["health"]
+		])
+
+		_show_floating_poison_damage(side, index, poison_damage)
+		_update_card_from_unit(side, index)
+		_update_atb_bars()
+		_update_target_lines()
+
+		if int(unit["health"]) <= 0:
+			await _handle_unit_death(side, index)
+			return true
+
+		await get_tree().create_timer(0.18).timeout
+
+	return skipped
+	
+func _perform_player_targeted_instinct_from_index(attacker_index: int, target_index: int, instinct_id: String) -> void:
+	if attacker_index < 0 or attacker_index >= player_units.size():
+		action_in_progress = false
+		return
+	if target_index < 0 or target_index >= enemy_units.size():
+		action_in_progress = false
+		return
+
+	if int(player_units[attacker_index]["health"]) <= 0 or int(enemy_units[target_index]["health"]) <= 0:
+		_finish_unit_action("player", attacker_index)
+		return
+
+	player_units[attacker_index]["used_instinct_this_action"] = true
+	player_units[attacker_index]["queued_action"] = ""
+
+	var attacker = player_units[attacker_index]
+	var defender = enemy_units[target_index]
+
+	match instinct_id:
+		"ignite", "burn":
+			var damage := 2
+			if _unit_has_modifier(defender, "greased"):
+				damage += 3
+
+			combat_log.append_text("%s uses %s on %s\n" % [
+				attacker["name"],
+				instinct_id.capitalize(),
+				defender["name"]
+			])
+
+			await _animate_attack("player", attacker_index, "enemy", target_index)
+
+			defender["health"] = max(0, int(defender["health"]) - damage)
+			_add_modifier_to_unit(defender, "burning")
+
+			_show_floating_burn_damage("enemy", target_index, damage)
+			await _animate_hit("enemy", target_index)
+
+			combat_log.append_text("%s takes %d fire damage (%d HP left)\n" % [
+				defender["name"], damage, defender["health"]
+			])
+
+		"oil":
+			combat_log.append_text("%s uses Oil on %s\n" % [attacker["name"], defender["name"]])
+
+			await _animate_attack("player", attacker_index, "enemy", target_index)
+
+			_add_modifier_to_unit(defender, "greased")
+
+			combat_log.append_text("%s is greased!\n" % defender["name"])
+
+		"freeze":
+			combat_log.append_text("%s uses Freeze on %s\n" % [attacker["name"], defender["name"]])
+
+			await _animate_attack("player", attacker_index, "enemy", target_index)
+
+			_add_modifier_to_unit(defender, "frozen")
+
+			combat_log.append_text("%s is frozen!\n" % defender["name"])
+			_show_floating_skip("enemy", target_index, "FROZEN")
+
+		"poison":
+			combat_log.append_text("%s uses Poison on %s\n" % [attacker["name"], defender["name"]])
+
+			await _animate_attack("player", attacker_index, "enemy", target_index)
+
+			_add_modifier_to_unit(defender, "poisoned")
+
+			combat_log.append_text("%s is poisoned!\n" % defender["name"])
+			_show_floating_poison_damage("enemy", target_index, 0)
+
+	_update_card_from_unit("player", attacker_index)
+	_update_card_from_unit("enemy", target_index)
+	_update_atb_bars()
+	_update_target_lines()
+	_clear_target_buttons()
+
+	if int(defender["health"]) <= 0:
+		await _handle_unit_death("enemy", target_index)
+
+	if _all_dead(enemy_units):
+		_end_battle(true)
+		return
+
+	await get_tree().create_timer(0.2).timeout
+	_finish_unit_action("player", attacker_index)
+func _refresh_selected_unit_buttons() -> void:
+	if manual_selected_player_index < 0 or manual_selected_player_index >= player_units.size():
+		attack_button.disabled = true
+		defend_button.disabled = true
+		instinct_button.disabled = true
+		instinct_button.text = "Instinct"
+		return
+
+	var unit = player_units[manual_selected_player_index]
+	var instinct_id := str(unit.get("instinct_id", ""))
+	var cooldown := _get_instinct_cooldown_remaining(unit)
+
+	attack_button.disabled = false
+	defend_button.disabled = false
+	instinct_button.text = _get_instinct_button_display_text(unit)
+	instinct_button.disabled = instinct_id == "" or cooldown > 0
