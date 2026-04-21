@@ -70,6 +70,10 @@ func _ready() -> void:
 	#print("ARENA active_node_type =", GameState.active_node_type)
 	_set_background()
 	reward_overlay.visible = false
+	_set_battle_paused_state(true)
+
+	if turn_info_label != null:
+		turn_info_label.text = "Battle paused - issue commands"
 	#print("Entered arena scene")
 	#print("Pending player team size:", GameState.pending_player_team.size())
 	#print("Pending enemy team size:", GameState.pending_enemy_team.size())
@@ -1439,10 +1443,7 @@ func _finish_unit_action(side: String, index: int) -> void:
 	_clear_target_buttons()
 	_refresh_cards_light()
 func _on_pause_pressed() -> void:
-	battle_paused = not battle_paused
-	pause_button.text = "Resume" if battle_paused else "Pause"
-	_update_pause_dim()
-	_update_battle_ui_visibility()
+	_set_battle_paused_state(not battle_paused)
 
 	if not battle_paused:
 		manual_selected_player_index = -1
@@ -1995,3 +1996,11 @@ func _begin_drag_assignment(index: int) -> void:
 
 	turn_info_label.text = "Drag to an enemy for %s" % unit["name"]
 	_update_target_lines()
+func _set_battle_paused_state(paused: bool) -> void:
+	battle_paused = paused
+
+	if pause_button != null:
+		pause_button.text = "Resume" if battle_paused else "Pause"
+
+	_update_pause_dim()
+	_update_battle_ui_visibility()
