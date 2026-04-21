@@ -20,13 +20,17 @@ var source_index: int = -1
 var _pending_slot_index: int = -1
 var greased_label: Label = null
 var _show_instinct_details: bool = false
+var _combat_mode: bool = false
+var _intent_text: String = ""
+var _intent_label: Label = null
+var _apply_data_queued: bool = false
 
 
 func setup(monster, p_source_type: String = "", p_source_index: int = -1) -> void:
 	_monster_data = monster
 	source_type = p_source_type
 	source_index = p_source_index
-	call_deferred("_apply_data")
+	_queue_apply_data()
 
 func _data_get(key: String, default_value = null):
 	if _monster_data == null:
@@ -84,11 +88,11 @@ func _apply_data() -> void:
 		str(_data_get("display_name", "Unknown")),
 		level
 	]
-
+	
 	attack_label.text = str(shown_attack)
 	health_label.text = str(shown_health)
 	slash_label.text = " / "
-
+	upgrade_chips.visible = not _combat_mode
 	if has_poisoned:
 		attack_label.modulate = Color(0.35, 1.0, 0.35, 1.0)
 	else:
@@ -97,21 +101,24 @@ func _apply_data() -> void:
 	health_label.modulate = Color(1, 1, 1, 1)
 	slash_label.modulate = Color(1, 1, 1, 1)
 
-	if level >= 12:
-		xp_bar.visible = true
-		xp_bar.min_value = 0
-		xp_bar.max_value = 1
-		xp_bar.value = 1
-		if next_slot_level != -1:
-			xp_bar.tooltip_text = "XP %d / %d\nNext slot at Lv.%d" % [xp, needed, next_slot_level]
-		else:
-			xp_bar.tooltip_text = "XP %d / %d\nMax slots reached" % [xp, needed]
+	if _combat_mode:
+		xp_bar.visible = false
 	else:
-		xp_bar.visible = true
-		xp_bar.min_value = 0
-		xp_bar.max_value = needed
-		xp_bar.value = xp
-		xp_bar.tooltip_text = "XP %d / %d" % [xp, needed]
+		if level >= 12:
+			xp_bar.visible = true
+			xp_bar.min_value = 0
+			xp_bar.max_value = 1
+			xp_bar.value = 1
+			if next_slot_level != -1:
+				xp_bar.tooltip_text = "XP %d / %d\nNext slot at Lv.%d" % [xp, needed, next_slot_level]
+			else:
+				xp_bar.tooltip_text = "XP %d / %d\nMax slots reached" % [xp, needed]
+		else:
+			xp_bar.visible = true
+			xp_bar.min_value = 0
+			xp_bar.max_value = needed
+			xp_bar.value = xp
+			xp_bar.tooltip_text = "XP %d / %d" % [xp, needed]
 
 	var tex = _data_get_meta("texture", null)
 	if tex != null:
@@ -123,6 +130,7 @@ func _apply_data() -> void:
 	_update_slots_label()
 	_update_greased_indicator()
 	_update_status_tint()
+	_update_intent_label()
 func _update_status_tint() -> void:
 	if _monster_data == null:
 		self_modulate = Color(1, 1, 1, 1)
@@ -542,3 +550,87 @@ func set_atb(current: float, maximum: float, ready: bool = false) -> void:
 		atb_bar.modulate = Color(0.65, 1.0, 0.65, 1.0)
 	else:
 		atb_bar.modulate = Color(1, 1, 1, 1)
+func set_combat_mode(enabled: bool) -> void:
+	_combat_mode = enabled
+	_queue_apply_data()
+
+
+func set_intent_text(text: String) -> void:
+	_intent_text = text
+	_queue_apply_data()
+func _update_intent_label() -> void:
+	if _intent_label == null:
+		_intent_label = Label.new()
+		_intent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_intent_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_intent_label.add_theme_font_size_override("font_size", 14)
+		_intent_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+		_intent_label.add_theme_constant_override("outline_size", 4)
+
+		var vbox := $PanelContainer/MarginContainer/VBoxContainer
+		vbox.add_child(_intent_label)
+
+	if _combat_mode:
+		_intent_label.visible = true
+		_intent_label.text = _intent_text
+	else:
+		_intent_label.visible = false
+func _queue_apply_data() -> void:
+	if _apply_data_queued:
+		return
+
+	_apply_data_queued = true
+	call_deferred("_apply_data_deferred")
+
+
+func _apply_data_deferred() -> void:
+	_apply_data_queued = false
+	_apply_data()
+func update_combat_snapshot(monster, intent_text: String = "", ready: bool = false, atb_current: float = 0.0, atb_maximum: float = 100.0) -> void:
+	_monster_data = monster
+
+	var modifiers = _data_get("modifiers", [])
+	var has_poisoned := false
+	for mod in modifiers:
+		if String(mod) == "poisoned":
+			has_poisoned = true
+			break
+
+	var base_attack: int = int(_data_get("attack", 0))
+	var poison_penalty: int = 1 if has_poisoned else 0
+	var shown_attack: int = int(max(1, base_attack - poison_penalty))
+	var shown_health: int = int(_data_get("health", 0))
+	var level: int = int(_data_get("level", 1))
+
+	name_label.text = "%s Lv.%d" % [
+		str(_data_get("display_name", "Unknown")),
+		level
+	]
+
+	attack_label.text = str(shown_attack)
+	health_label.text = str(shown_health)
+	slash_label.text = " / "
+
+	attack_label.modulate = Color(0.35, 1.0, 0.35, 1.0) if has_poisoned else Color(1, 1, 1, 1)
+	health_label.modulate = Color(1, 1, 1, 1)
+	slash_label.modulate = Color(1, 1, 1, 1)
+
+	if xp_bar != null:
+		xp_bar.visible = false
+	if upgrade_chips != null:
+		upgrade_chips.visible = false
+	if atb_bar != null:
+		atb_bar.visible = true
+
+	_update_modifier_label()
+	_update_greased_indicator()
+	_update_status_tint()
+
+	if _intent_label == null:
+		_update_intent_label()
+
+	if _intent_label != null:
+		_intent_label.visible = _combat_mode
+		_intent_label.text = intent_text
+
+	set_atb(atb_current, atb_maximum, ready)

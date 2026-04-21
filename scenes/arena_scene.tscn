@@ -83,7 +83,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 
 [node name="Control" type="Control" parent="MarginContainer/VBoxContainer" unique_id=831085147]
-custom_minimum_size = Vector2(0, 150)
+custom_minimum_size = Vector2(0, 75)
 layout_mode = 2
 
 [node name="PlayerLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1520506958]
