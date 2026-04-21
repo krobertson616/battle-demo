@@ -172,7 +172,7 @@ func refresh_ui() -> void:
 			shop_row.add_child(card)
 		else:
 			var slot := PanelContainer.new()
-			slot.custom_minimum_size = Vector2(150, 180)
+			slot.custom_minimum_size = Vector2(170, 250)
 			shop_row.add_child(slot)
 
 

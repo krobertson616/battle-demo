@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bd8se24ch3pww" path="res://boardslot.gd" id="1_o3fim"]
 
 [node name="Boardslot" type="PanelContainer" unique_id=439709112]
-custom_minimum_size = Vector2(150, 180)
+custom_minimum_size = Vector2(170, 250)
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("1_o3fim")

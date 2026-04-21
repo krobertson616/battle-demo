@@ -40,6 +40,17 @@ var pending_extract_count: int = 0
 var selected_roster_indexes: Array[int] = []
 var current_run_background_path: String = ""
 
+var starter_offer_ids: Array[String] = [
+	"golem",       # Pebble
+	"wolf",        # Sheni
+	"imp",         # Imp
+	"mossmender",  # healer
+	"fang_adder",  # poison
+	"frost_wisp"   # control
+]
+
+var selected_starter_team: Array[MonsterData] = []
+
 
 func _ready() -> void:
 	randomize()
@@ -1206,3 +1217,31 @@ func get_instinct_dict_by_id(instinct_id: String) -> Dictionary:
 		if String(instinct.get("id", "")) == instinct_id:
 			return instinct.duplicate(true)
 	return {}
+func build_starter_offer() -> Array[MonsterData]:
+	var offer: Array[MonsterData] = []
+	for id in starter_offer_ids:
+		var template := get_monster_by_id(id)
+		if template != null:
+			offer.append(clone_monster(template))
+	return offer
+
+func clear_starter_team() -> void:
+	selected_starter_team.clear()
+func begin_cave_run_with_starters(team: Array[MonsterData]) -> void:
+	var chosen_team: Array[MonsterData] = team.duplicate()
+
+	reset_run_for_new_attempt()
+	start_new_run_from_map("cave")
+
+	selected_starter_team.clear()
+	hand_monsters.clear()
+	hand_cards.clear()
+
+	for monster in chosen_team:
+		var copy: MonsterData = clone_monster(monster)
+		selected_starter_team.append(copy)
+		hand_monsters.append(copy)
+		hand_cards.append({
+			"card_type": "monster",
+			"monster": copy
+		})

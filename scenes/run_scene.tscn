@@ -72,6 +72,7 @@ text = "Board"
 horizontal_alignment = 1
 
 [node name="BoardRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=836017297]
+custom_minimum_size = Vector2(0, 260)
 layout_mode = 2
 alignment = 1
 
