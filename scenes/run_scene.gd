@@ -55,6 +55,7 @@ func _ready() -> void:
 	remove_instinct_overlay.visible = false
 	remove_instinct_cancel_button.pressed.connect(_close_remove_instinct_overlay)
 	
+	
 	GameState.sell_strip_ref = sell_strip
 
 	reroll_btn.pressed.connect(_reroll)
