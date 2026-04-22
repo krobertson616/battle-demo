@@ -53,27 +53,6 @@ text = "Wolf"
 horizontal_alignment = 1
 vertical_alignment = 2
 
-[node name="StatsRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=527881737]
-layout_mode = 2
-size_flags_vertical = 3
-alignment = 1
-
-[node name="ModifierLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/StatsRow" unique_id=55410697]
-layout_mode = 2
-size_flags_horizontal = 3
-horizontal_alignment = 1
-vertical_alignment = 2
-
-[node name="AttackLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/StatsRow" unique_id=960268360]
-layout_mode = 2
-
-[node name="SlashLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/StatsRow" unique_id=840890807]
-layout_mode = 2
-text = "\" / \""
-
-[node name="HealthLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/StatsRow" unique_id=886830532]
-layout_mode = 2
-
 [node name="HealthBar" type="ProgressBar" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=674337269]
 custom_minimum_size = Vector2(0, 6)
 layout_mode = 2
@@ -86,6 +65,22 @@ layout_mode = 2
 theme_override_styles/fill = SubResource("StyleBoxFlat_qk6kt")
 show_percentage = false
 
+[node name="StatsRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=527881737]
+layout_mode = 2
+size_flags_vertical = 3
+alignment = 1
+
+[node name="AttackLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/StatsRow" unique_id=960268360]
+visible = false
+layout_mode = 2
+
+[node name="SlashLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/StatsRow" unique_id=840890807]
+layout_mode = 2
+text = "\" / \""
+
+[node name="HealthLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/StatsRow" unique_id=886830532]
+layout_mode = 2
+
 [node name="AtbBar" type="ProgressBar" parent="PanelContainer/MarginContainer/VBoxContainer" unique_id=1497940150]
 custom_minimum_size = Vector2(0, 6)
 layout_mode = 2
@@ -96,3 +91,9 @@ show_percentage = false
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 theme_override_constants/separation = 3
+
+[node name="ModifierLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/UpgradeChips" unique_id=55410697]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 1
+vertical_alignment = 2

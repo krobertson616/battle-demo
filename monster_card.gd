@@ -13,7 +13,7 @@ const CARD_HEIGHT := 260
 @onready var art_frame: PanelContainer = $PanelContainer/MarginContainer/VBoxContainer/ArtFrame
 @onready var portrait: TextureRect = $PanelContainer/MarginContainer/VBoxContainer/ArtFrame/AspectRatioContainer/Portrait
 @onready var name_label: Label = $PanelContainer/MarginContainer/VBoxContainer/NameLabel
-@onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/StatsRow/ModifierLabel
+@onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/UpgradeChips/ModifierLabel
 @onready var attack_label: Label = $PanelContainer/MarginContainer/VBoxContainer/StatsRow/AttackLabel
 @onready var slash_label: Label = $PanelContainer/MarginContainer/VBoxContainer/StatsRow/SlashLabel
 @onready var health_label: Label = $PanelContainer/MarginContainer/VBoxContainer/StatsRow/HealthLabel
@@ -815,26 +815,26 @@ func _setup_health_bar() -> void:
 	if health_bar == null:
 		return
 
-	health_bar.custom_minimum_size = Vector2(0, 12)
+	health_bar.custom_minimum_size = Vector2(0, 22)
 	health_bar.show_percentage = false
 	health_bar.min_value = 0
 	health_bar.max_value = 100
 
 	_health_background_style = StyleBoxFlat.new()
 	_health_background_style.bg_color = Color(0.10, 0.04, 0.04, 0.95)
-	_health_background_style.border_color = Color(0.28, 0.10, 0.10, 1.0)
+	_health_background_style.border_color = Color(0.20, 0.08, 0.08, 1.0)
 	_health_background_style.set_border_width_all(1)
-	_health_background_style.corner_radius_top_left = 5
-	_health_background_style.corner_radius_top_right = 5
-	_health_background_style.corner_radius_bottom_left = 5
-	_health_background_style.corner_radius_bottom_right = 5
+	_health_background_style.corner_radius_top_left = 6
+	_health_background_style.corner_radius_top_right = 6
+	_health_background_style.corner_radius_bottom_left = 6
+	_health_background_style.corner_radius_bottom_right = 6
 
 	_health_fill_style = StyleBoxFlat.new()
 	_health_fill_style.bg_color = Color(0.85, 0.18, 0.18, 1.0)
-	_health_fill_style.corner_radius_top_left = 5
-	_health_fill_style.corner_radius_top_right = 5
-	_health_fill_style.corner_radius_bottom_left = 5
-	_health_fill_style.corner_radius_bottom_right = 5
+	_health_fill_style.corner_radius_top_left = 6
+	_health_fill_style.corner_radius_top_right = 6
+	_health_fill_style.corner_radius_bottom_left = 6
+	_health_fill_style.corner_radius_bottom_right = 6
 
 	health_bar.add_theme_stylebox_override("background", _health_background_style)
 	health_bar.add_theme_stylebox_override("fill", _health_fill_style)
@@ -846,13 +846,12 @@ func _setup_health_bar() -> void:
 		_health_bar_text.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_health_bar_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_health_bar_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_health_bar_text.add_theme_font_size_override("font_size", 11)
+		_health_bar_text.add_theme_font_size_override("font_size", 14)
 		_health_bar_text.add_theme_color_override("font_color", Color(1, 1, 1, 1))
 		_health_bar_text.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
-		_health_bar_text.add_theme_constant_override("outline_size", 3)
+		_health_bar_text.add_theme_constant_override("outline_size", 5)
 		_health_bar_text.text = ""
 		health_bar.add_child(_health_bar_text)
-
 func _setup_xp_bar() -> void:
 	if xp_bar == null:
 		return
