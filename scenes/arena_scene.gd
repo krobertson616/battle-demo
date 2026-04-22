@@ -1425,20 +1425,16 @@ func _should_abort_action_dispatch(side: String, units: Array, index: int) -> bo
 
 	return false
 func _dispatch_enemy_action(index: int) -> void:
-	if _should_abort_action_dispatch("enemy", enemy_units, index):
-		return
-
-	var skipped := await _resolve_pre_action_statuses("enemy", index)
-	if skipped:
-		_finish_unit_action("enemy", index)
-		return
-
-	if _should_abort_action_dispatch("enemy", enemy_units, index):
+	if index < 0 or index >= enemy_units.size():
 		return
 
 	var unit = enemy_units[index]
 
 	# Exploders do not attack. They blow up on their turn.
+	if bool(unit.get("is_exploder", false)):
+		await _perform_enemy_explosion_from_index(index)
+		return
+
 	if bool(unit.get("is_boss_summoner", false)):
 		var step: int = int(unit.get("boss_summon_step", 0))
 
@@ -1456,7 +1452,6 @@ func _dispatch_enemy_action(index: int) -> void:
 				enemy_units[index]["boss_summon_step"] = 3
 			return
 
-		# Otherwise attack
 		var target_index := _get_valid_player_target_for_enemy()
 		if target_index == -1:
 			_end_battle(false)
@@ -2438,6 +2433,14 @@ func _get_enemy_intent_text(index: int) -> String:
 
 	if str(unit.get("instinct_id", "")) == "heal":
 		return "HEAL"
+	if bool(unit.get("is_exploder", false)):
+		match str(unit.get("explode_status_id", "")):
+			"burn":
+				return "EXPLODE: BURN"
+			"grease":
+				return "EXPLODE: GREASE"
+			_:
+				return "EXPLODE"
 	if bool(unit.get("is_boss_summoner", false)):
 		var step: int = int(unit.get("boss_summon_step", 0))
 
