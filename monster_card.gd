@@ -41,6 +41,7 @@ var _health_fill_style: StyleBoxFlat
 var _health_background_style: StyleBoxFlat
 var _xp_fill_style: StyleBoxFlat
 var _xp_background_style: StyleBoxFlat
+var _health_bar_text: Label
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
@@ -215,9 +216,9 @@ func _apply_data() -> void:
 	]
 
 	attack_label.text = str(shown_attack)
-	health_label.text = "%d/%d" % [shown_health, max_health]
+	health_label.visible = false
 	_update_health_bar(shown_health, max_health)
-	slash_label.text = " / "
+	slash_label.visible = false
 	upgrade_chips.visible = not _combat_mode
 
 	if has_poisoned:
@@ -838,6 +839,19 @@ func _setup_health_bar() -> void:
 	health_bar.add_theme_stylebox_override("background", _health_background_style)
 	health_bar.add_theme_stylebox_override("fill", _health_fill_style)
 
+	if _health_bar_text == null:
+		_health_bar_text = Label.new()
+		_health_bar_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_health_bar_text.focus_mode = Control.FOCUS_NONE
+		_health_bar_text.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_health_bar_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_health_bar_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_health_bar_text.add_theme_font_size_override("font_size", 11)
+		_health_bar_text.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+		_health_bar_text.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+		_health_bar_text.add_theme_constant_override("outline_size", 3)
+		_health_bar_text.text = ""
+		health_bar.add_child(_health_bar_text)
 
 func _setup_xp_bar() -> void:
 	if xp_bar == null:
@@ -880,6 +894,9 @@ func _update_health_bar(current_health: int, max_health: int) -> void:
 	health_bar.max_value = max_health
 	health_bar.value = current_health
 	health_bar.tooltip_text = "Health %d / %d" % [current_health, max_health]
+
+	if _health_bar_text != null:
+		_health_bar_text.text = "%d/%d" % [current_health, max_health]
 
 	var ratio := float(current_health) / float(max_health)
 
