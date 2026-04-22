@@ -948,7 +948,7 @@ func _monster_to_battle_unit(monster, side: String, index: int) -> Dictionary:
 			base_speed = 37.0
 			# windfury not wired yet
 		"volatile_conductor":
-			base_speed = 22.0
+			base_speed = 42
 
 		"fireling":
 			base_speed = 36.0
@@ -1083,7 +1083,6 @@ func _spawn_enemy_minion(enemy_type: String) -> void:
 	var new_index := enemy_units.size()
 	var new_unit := _monster_to_battle_unit(enemy_data, "enemy", new_index)
 
-	# Override summon pacing so the boss fight feels intentional.
 	if enemy_type == "greaseling":
 		new_unit["atb"] = 0.0
 		new_unit["speed"] = 18.0
@@ -1159,6 +1158,7 @@ func _perform_enemy_explosion_from_index(attacker_index: int) -> void:
 
 		var damage := base_damage
 
+		# Fire explosion gets stronger against greased targets
 		if status_id == "burn" and _unit_has_modifier(defender, "greased"):
 			damage += 2
 
@@ -1166,17 +1166,21 @@ func _perform_enemy_explosion_from_index(attacker_index: int) -> void:
 
 		if not blocked:
 			defender["health"] = max(0, int(defender["health"]) - damage)
+			_show_floating_damage("player", i, damage)
 
-			if status_id == "burn":
-				_add_timed_modifier_to_unit(defender, "burning", turns)
-				_show_floating_burn_damage("player", i, damage)
-			elif status_id == "grease":
-				_add_timed_modifier_to_unit(defender, "greased", turns)
-				_show_floating_damage("player", i, damage)
-			else:
-				_show_floating_damage("player", i, damage)
+		# Apply status to everyone alive, even if the hit was shielded
+		match status_id:
+			"burn":
+				if int(defender["health"]) > 0:
+					_add_timed_modifier_to_unit(defender, "burning", turns)
+					combat_log.append_text("%s is burning!\n" % defender["name"])
 
-			_update_card_from_unit("player", i)
+			"grease":
+				if int(defender["health"]) > 0:
+					_add_timed_modifier_to_unit(defender, "greased", turns)
+					combat_log.append_text("%s is greased!\n" % defender["name"])
+
+		_update_card_from_unit("player", i)
 
 	minion["health"] = 0
 	await _handle_unit_death("enemy", attacker_index)
@@ -1435,26 +1439,43 @@ func _dispatch_enemy_action(index: int) -> void:
 	var unit = enemy_units[index]
 
 	# Exploders do not attack. They blow up on their turn.
-	if bool(unit.get("is_exploder", false)):
-		await _perform_enemy_explosion_from_index(index)
-		return
-
-	# Boss pattern:
-	# Step 0 = summon Greaseling
-	# Step 1 = summon Fireling
-	# Step 2 = attack, then reset to 0
 	if bool(unit.get("is_boss_summoner", false)):
 		var step: int = int(unit.get("boss_summon_step", 0))
-		var summon_type := _get_boss_summon_type(unit)
 
-		if step <= 1 and summon_type != "":
-			await _perform_boss_summon_from_index(index, summon_type)
-
+		# Step 1 = summon Greaseling
+		if step == 1 and _get_alive_enemy_minion_count() < 2 and not _enemy_has_alive_unit_with_id("greaseling"):
+			await _perform_boss_summon_from_index(index, "greaseling")
 			if index >= 0 and index < enemy_units.size():
-				enemy_units[index]["boss_summon_step"] = step + 1
+				enemy_units[index]["boss_summon_step"] = 2
 			return
 
+		# Step 2 = summon Fireling
+		if step == 2 and _get_alive_enemy_minion_count() < 2 and not _enemy_has_alive_unit_with_id("fireling"):
+			await _perform_boss_summon_from_index(index, "fireling")
+			if index >= 0 and index < enemy_units.size():
+				enemy_units[index]["boss_summon_step"] = 3
+			return
+
+		# Otherwise attack
 		var target_index := _get_valid_player_target_for_enemy()
+		if target_index == -1:
+			_end_battle(false)
+			return
+
+		await _perform_enemy_attack_from_index(index, target_index)
+
+		if index >= 0 and index < enemy_units.size():
+			match step:
+				0:
+					enemy_units[index]["boss_summon_step"] = 1
+				1:
+					enemy_units[index]["boss_summon_step"] = 2
+				2:
+					enemy_units[index]["boss_summon_step"] = 3
+				_:
+					enemy_units[index]["boss_summon_step"] = 0
+		return
+
 		if target_index == -1:
 			_end_battle(false)
 			return
@@ -2417,14 +2438,16 @@ func _get_enemy_intent_text(index: int) -> String:
 
 	if str(unit.get("instinct_id", "")) == "heal":
 		return "HEAL"
-	if bool(unit.get("is_exploder", false)):
-		match str(unit.get("explode_status_id", "")):
-			"burn":
-				return "EXPLODE: BURN"
-			"grease":
-				return "EXPLODE: GREASE"
-			_:
-				return "EXPLODE"
+	if bool(unit.get("is_boss_summoner", false)):
+		var step: int = int(unit.get("boss_summon_step", 0))
+
+		if step == 1 and _get_alive_enemy_minion_count() < 2 and not _enemy_has_alive_unit_with_id("greaseling"):
+			return "SUMMON: GREASE"
+
+		if step == 2 and _get_alive_enemy_minion_count() < 2 and not _enemy_has_alive_unit_with_id("fireling"):
+			return "SUMMON: FIRE"
+
+		return "ATTACK"
 
 	if bool(unit.get("is_boss_summoner", false)):
 		var step: int = int(unit.get("boss_summon_step", 0))
