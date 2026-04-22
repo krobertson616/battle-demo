@@ -208,6 +208,7 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 	return m
 func build_first_test_run() -> void:
 	run_encounters = [
+		"cave_boss_1",
 		"cave_1",
 		"cave_2",
 		"event_crystal_infusion",
@@ -220,7 +221,6 @@ func build_first_test_run() -> void:
 		"cave_6",
 		"event_strange_totem",
 		"cave_7",
-		"cave_boss_1",
 	]
 	current_encounter_index = 0
 	current_encounter_index = 0
@@ -701,8 +701,7 @@ func build_enemy_team_for_encounter(encounter_id: String) -> Array:
 
 		"cave_boss_1":
 			return [
-				create_enemy("boss"),
-				create_enemy("moth")
+				create_enemy("volatile_conductor")
 			]
 
 		_:
@@ -820,6 +819,47 @@ func create_enemy(type: String) -> Dictionary:
 				"instincts": [],
 				"texture": load("res://assets/cryptlord.png")
 			}
+		"volatile_conductor":
+			return {
+				"id": "volatile_conductor",
+				"display_name": "Volatile Conductor",
+				"attack": 2,
+				"health": 64,
+				"max_health": 64,
+				"tribe": "Boss",
+				"modifiers": [],
+				"equipped_modifiers": [],
+				"instincts": [],
+				"texture": load("res://assets/cryptlord.png")
+			}
+
+		"fireling":
+			return {
+				"id": "fireling",
+				"display_name": "Fireling",
+				"attack": 0,
+				"health": 4,
+				"max_health": 4,
+				"tribe": "Ember",
+				"modifiers": [],
+				"equipped_modifiers": [],
+				"instincts": [],
+				"texture": load("res://assets/cavebat.png")
+			}
+
+		"greaseling":
+			return {
+				"id": "greaseling",
+				"display_name": "Greaseling",
+				"attack": 0,
+				"health": 3,
+				"max_health": 3,
+				"tribe": "Slime",
+				"modifiers": [],
+				"equipped_modifiers": [],
+				"instincts": [],
+				"texture": load("res://assets/caveslime.png")
+			}	
 
 	return {}
 func build_dummy_enemy_team() -> Array:
