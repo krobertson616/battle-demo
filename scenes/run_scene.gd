@@ -8,7 +8,7 @@ const HAND_SIZE := 6
 var item_pool: Array = []
 
 
-@onready var top_bar: Label = $MarginContainer/VBoxContainer/TopBarLabel
+@onready var top_bar: Label = $TopHUD/TopBarLabel
 @onready var shop_row: HBoxContainer = $MarginContainer/VBoxContainer/ShopSection/ShopRow
 @onready var board_row: HBoxContainer = $MarginContainer/VBoxContainer/BoardRow
 @onready var reroll_btn: Button = $MarginContainer/VBoxContainer/ShopSection/RerollButton
@@ -223,8 +223,8 @@ func refresh_ui() -> void:
 			card.board_swap_requested.connect(_on_board_swap_requested)
 			slot.center_container.add_child(card)
 
-	reroll_btn.text = "Reroll (1)"
-	start_btn.text = "Start Combat"
+	reroll_btn.text = "Reroll (1g)"
+	start_btn.text = "Explore"
 func _on_board_swap_requested(from_index: int, to_index: int) -> void:
 	if from_index < 0 or from_index >= BOARD_SIZE:
 		return

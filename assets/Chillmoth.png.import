@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://gww7n3nqw5qg"
-path="res://.godot/imported/chillmoth.png-c1b04f9170764b8b08ac6c8632516d09.ctex"
+uid="uid://cda00wbg057an"
+path="res://.godot/imported/Chillmoth.png-f88d47610d5a6fd78379ead450c796d2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/chillmoth.png"
-dest_files=["res://.godot/imported/chillmoth.png-c1b04f9170764b8b08ac6c8632516d09.ctex"]
+source_file="res://assets/Chillmoth.png"
+dest_files=["res://.godot/imported/Chillmoth.png-f88d47610d5a6fd78379ead450c796d2.ctex"]
 
 [params]
 

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c7smix02y8o3d"]
 
 [ext_resource type="Script" uid="uid://1vuy2lt1mx52" path="res://title_screen.gd" id="1_sa3yf"]
-[ext_resource type="Texture2D" uid="uid://cdqy4ypaog5na" path="res://assets/start.png" id="2_s4lrb"]
+[ext_resource type="Texture2D" uid="uid://cu3b6bnjp1aw4" path="res://assets/d254db03-40ad-4e72-ac1d-7effdf92bdf3.png" id="2_sa3yf"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_sa3yf"]
 
@@ -27,23 +27,23 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -65.75
-offset_top = 2.0
-offset_right = 68.75
-offset_bottom = -2.0
+offset_left = 3.0
+offset_top = 3.000002
+offset_right = 834.57886
+offset_bottom = 681.9474
 grow_horizontal = 2
 grow_vertical = 2
+scale = Vector2(0.57, 0.57)
 mouse_filter = 2
-texture = ExtResource("2_s4lrb")
-expand_mode = 3
-stretch_mode = 6
+texture = ExtResource("2_sa3yf")
+expand_mode = 2
 
 [node name="PlayButton" type="Button" parent="." unique_id=898548457]
 layout_mode = 0
-offset_left = 371.0
-offset_top = 542.0
-offset_right = 733.0
-offset_bottom = 631.0
+offset_left = 372.0
+offset_top = 686.0
+offset_right = 741.0
+offset_bottom = 855.0
 mouse_default_cursor_shape = 2
 theme_override_styles/normal = SubResource("StyleBoxEmpty_sa3yf")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_s4lrb")

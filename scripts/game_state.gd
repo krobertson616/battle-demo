@@ -42,7 +42,7 @@ var current_run_background_path: String = ""
 
 var starter_offer_ids: Array[String] = [
 	"golem",       # Pebble
-	"wolf",        # Sheni
+	"slime",        # Sheni
 	"imp",         # Imp
 	"mossmender",  # healer
 	"fang_adder",  # poison
@@ -65,8 +65,8 @@ func _build_monster_pools() -> void:
 		# Existing base roster
 # Base roster
 _make("wolf", "Sheni", "Fang", 1, 2, 5, "alpha_wolf"),
-_make("imp", "Imp", "Ember", 1, 3, 4, "fireling"),
-_make("slime", "Slime", "Slime", 1, 1, 5, "superslime"),
+_make("imp", "Kandel", "Ember", 1, 3, 4, "fireling"),
+_make("slime", "Skillet", "Slime", 1, 1, 5, "superslime"),
 _make("golem", "Pebble", "Stone", 1, 1, 8, "stone_guardian"),
 
 # Evolutions
@@ -76,10 +76,10 @@ _make("superslime", "King Slime", "Slime", 1, 2, 8, "none"),
 _make("stone_guardian", "Guardian", "Stone", 3, 2, 11, "none"),
 
 # New base shop creatures
-_make("mossmender", "Mossmender", "Grove", 1, 1, 6, "elder_mossmender"),
-_make("fang_adder", "Fang Adder", "Venom", 1, 2, 5, "venom_maw"),
-_make("razor_mite", "Razor Mite", "Skitter", 1, 1, 4, "razor_horror"),
-_make("frost_wisp", "Frost Wisp", "Frost", 1, 1, 6, "icebound_seer"),
+_make("mossmender", "Loomi", "Grove", 1, 1, 6, "elder_mossmender"),
+_make("fang_adder", "Platty", "Venom", 1, 2, 5, "venom_maw"),
+_make("razor_mite", "Rosssie", "Skitter", 1, 1, 4, "razor_horror"),
+_make("frost_wisp", "Brram", "Frost", 1, 1, 6, "icebound_seer"),
 
 # New evolutions
 _make("elder_mossmender", "Elder Mossmender", "Grove", 4, 2, 9, "none"),

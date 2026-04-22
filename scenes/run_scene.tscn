@@ -5,6 +5,9 @@
 [ext_resource type="Script" uid="uid://xkph3le33qgo" path="res://scenes/shop_row_drop_target.gd" id="2_igvb1"]
 [ext_resource type="Script" uid="uid://l48crwf50qd2" path="res://scenes/sellstrip.gd" id="3_bkspu"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_igvb1"]
+bg_color = Color(0.76, 0.76, 0.76, 0.33333334)
+
 [node name="Control" type="Control" unique_id=1337837687]
 layout_mode = 3
 anchors_preset = 15
@@ -25,6 +28,18 @@ texture = ExtResource("2_bkspu")
 expand_mode = 1
 stretch_mode = 6
 
+[node name="TopHUD" type="MarginContainer" parent="." unique_id=1137345924]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 23.0
+grow_horizontal = 2
+theme_override_constants/margin_left = 20
+
+[node name="TopBarLabel" type="Label" parent="TopHUD" unique_id=1155403516]
+layout_mode = 2
+text = "Round 1   Gold: 3   Health: 10"
+
 [node name="MarginContainer" type="MarginContainer" parent="." unique_id=982953996]
 layout_mode = 1
 anchors_preset = 15
@@ -33,16 +48,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 30
-theme_override_constants/margin_top = 30
+theme_override_constants/margin_top = 50
 theme_override_constants/margin_right = 30
 theme_override_constants/margin_bottom = 30
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1240324692]
 layout_mode = 2
-
-[node name="TopBarLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1155403516]
-layout_mode = 2
-text = "Round 1   Gold: 3   Health: 10"
 
 [node name="ShopLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=568218347]
 custom_minimum_size = Vector2(50, 50)
@@ -63,7 +74,6 @@ alignment = 1
 script = ExtResource("2_igvb1")
 
 [node name="RerollButton" type="Button" parent="MarginContainer/VBoxContainer/ShopSection" unique_id=922490557]
-visible = false
 custom_minimum_size = Vector2(140, 36)
 layout_mode = 2
 size_flags_horizontal = 0
@@ -90,7 +100,7 @@ text = "Start Combat"
 layout_mode = 2
 
 [node name="HandRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=208948201]
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 270)
 layout_mode = 2
 
 [node name="StarterPanel" type="PanelContainer" parent="." unique_id=931395617]
@@ -136,8 +146,9 @@ anchor_right = 1.0
 anchor_bottom = 0.38200003
 offset_left = 2.0
 offset_top = -7.0
-offset_right = 42.0
-offset_bottom = 27.199982
+offset_right = 11.0
+offset_bottom = -129.80002
+theme_override_styles/panel = SubResource("StyleBoxFlat_igvb1")
 script = ExtResource("3_bkspu")
 
 [node name="EventOverlay" type="CenterContainer" parent="." unique_id=859899835]

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://ddw6je7skwqm8"]
 
 [ext_resource type="Script" uid="uid://dkdlhq7bj1vdt" path="res://scenes/starter_select.gd" id="1_1aq8w"]
-[ext_resource type="Texture2D" uid="uid://cgvba7nd7d7hg" path="res://assets/choose.png" id="2_4vkwa"]
+[ext_resource type="Texture2D" uid="uid://btd5h1vvsau2t" path="res://assets/map.png" id="2_4vkwa"]
 
 [node name="Control" type="Control" unique_id=1955961940]
 layout_mode = 3
@@ -17,16 +17,28 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -24.0
+offset_top = -4.0
+offset_right = 505.33337
+offset_bottom = 308.0
 grow_horizontal = 2
 grow_vertical = 2
+scale = Vector2(0.75, 0.75)
 mouse_filter = 2
 texture = ExtResource("2_4vkwa")
+stretch_mode = 5
+flip_h = true
 
 [node name="CenterContainer" type="CenterContainer" parent="." unique_id=298405192]
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 33.0
+offset_right = 8.0
+offset_bottom = 33.0
 grow_horizontal = 2
 grow_vertical = 2
 
