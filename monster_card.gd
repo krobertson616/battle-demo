@@ -20,6 +20,7 @@ const CARD_HEIGHT := 260
 @onready var upgrade_chips: VBoxContainer = $PanelContainer/MarginContainer/VBoxContainer/UpgradeChips
 @onready var xp_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/ProgressBar
 @onready var atb_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/AtbBar
+@onready var health_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/HealthBar
 
 var _monster_data = null
 var source_type: String = ""
@@ -36,6 +37,10 @@ var _normal_panel_style: StyleBoxFlat
 var _hover_panel_style: StyleBoxFlat
 var _selected: bool = false
 var _selected_panel_style: StyleBoxFlat
+var _health_fill_style: StyleBoxFlat
+var _health_background_style: StyleBoxFlat
+var _xp_fill_style: StyleBoxFlat
+var _xp_background_style: StyleBoxFlat
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
@@ -77,13 +82,16 @@ func _ready() -> void:
 			lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
 			lbl.add_theme_constant_override("outline_size", 4)
 
+	if health_bar != null:
+		_setup_health_bar()
+
 	if xp_bar != null:
-		xp_bar.custom_minimum_size = Vector2(0, 10)
-		xp_bar.show_percentage = false
+		_setup_xp_bar()
 
 	if atb_bar != null:
 		atb_bar.custom_minimum_size = Vector2(0, 10)
 		atb_bar.show_percentage = false
+
 	if _monster_data != null:
 		_queue_apply_data()
 
@@ -178,6 +186,8 @@ func _apply_data() -> void:
 
 	var modifiers = _data_get("modifiers", [])
 	var has_poisoned := false
+	var shown_health: int = int(_data_get("health", 0))
+	var max_health: int = int(_data_get("max_health", shown_health))
 	for mod in modifiers:
 		if String(mod) == "poisoned":
 			has_poisoned = true
@@ -186,7 +196,6 @@ func _apply_data() -> void:
 	var base_attack: int = int(_data_get("attack", 0))
 	var poison_penalty: int = 1 if has_poisoned else 0
 	var shown_attack: int = int(max(1, base_attack - poison_penalty))
-	var shown_health: int = int(_data_get("health", 0))
 
 	var level: int = int(_data_get("level", 1))
 	var current_slots: int = int(_data_get("modifier_slots", 1))
@@ -206,7 +215,8 @@ func _apply_data() -> void:
 	]
 
 	attack_label.text = str(shown_attack)
-	health_label.text = str(shown_health)
+	health_label.text = "%d/%d" % [shown_health, max_health]
+	_update_health_bar(shown_health, max_health)
 	slash_label.text = " / "
 	upgrade_chips.visible = not _combat_mode
 
@@ -218,10 +228,22 @@ func _apply_data() -> void:
 	health_label.modulate = Color(1, 1, 1, 1)
 	slash_label.modulate = Color(0.85, 0.85, 0.85, 1)
 
-	if _combat_mode:
-		xp_bar.visible = false
+	health_bar.visible = true
+	xp_bar.visible = true
+
+	if level >= 12:
+		xp_bar.min_value = 0
+		xp_bar.max_value = 1
+		xp_bar.value = 1
+		if next_slot_level != -1:
+			xp_bar.tooltip_text = "XP %d / %d\nNext slot at Lv.%d" % [xp, needed, next_slot_level]
+		else:
+			xp_bar.tooltip_text = "XP %d / %d\nMax slots reached" % [xp, needed]
 	else:
-		xp_bar.visible = true
+		xp_bar.min_value = 0
+		xp_bar.max_value = needed
+		xp_bar.value = xp
+		xp_bar.tooltip_text = "XP %d / %d" % [xp, needed]
 		if level >= 12:
 			xp_bar.min_value = 0
 			xp_bar.max_value = 1
@@ -655,9 +677,11 @@ func set_combat_ui(enabled: bool) -> void:
 	if atb_bar != null:
 		atb_bar.visible = enabled
 
-	# Hide XP bar in combat if you don't want both shown
+	if health_bar != null:
+		health_bar.visible = true
+
 	if xp_bar != null:
-		xp_bar.visible = not enabled
+		xp_bar.visible = true
 
 
 func set_atb(current: float, maximum: float, ready: bool = false) -> void:
@@ -786,3 +810,84 @@ func _refresh_hover_visual() -> void:
 func set_selected(value: bool) -> void:
 	_selected = value
 	_refresh_hover_visual()
+func _setup_health_bar() -> void:
+	if health_bar == null:
+		return
+
+	health_bar.custom_minimum_size = Vector2(0, 12)
+	health_bar.show_percentage = false
+	health_bar.min_value = 0
+	health_bar.max_value = 100
+
+	_health_background_style = StyleBoxFlat.new()
+	_health_background_style.bg_color = Color(0.10, 0.04, 0.04, 0.95)
+	_health_background_style.border_color = Color(0.28, 0.10, 0.10, 1.0)
+	_health_background_style.set_border_width_all(1)
+	_health_background_style.corner_radius_top_left = 5
+	_health_background_style.corner_radius_top_right = 5
+	_health_background_style.corner_radius_bottom_left = 5
+	_health_background_style.corner_radius_bottom_right = 5
+
+	_health_fill_style = StyleBoxFlat.new()
+	_health_fill_style.bg_color = Color(0.85, 0.18, 0.18, 1.0)
+	_health_fill_style.corner_radius_top_left = 5
+	_health_fill_style.corner_radius_top_right = 5
+	_health_fill_style.corner_radius_bottom_left = 5
+	_health_fill_style.corner_radius_bottom_right = 5
+
+	health_bar.add_theme_stylebox_override("background", _health_background_style)
+	health_bar.add_theme_stylebox_override("fill", _health_fill_style)
+
+
+func _setup_xp_bar() -> void:
+	if xp_bar == null:
+		return
+
+	xp_bar.custom_minimum_size = Vector2(0, 8)
+	xp_bar.show_percentage = false
+	xp_bar.min_value = 0
+	xp_bar.max_value = 100
+
+	_xp_background_style = StyleBoxFlat.new()
+	_xp_background_style.bg_color = Color(0.05, 0.08, 0.12, 0.95)
+	_xp_background_style.border_color = Color(0.14, 0.22, 0.30, 1.0)
+	_xp_background_style.set_border_width_all(1)
+	_xp_background_style.corner_radius_top_left = 4
+	_xp_background_style.corner_radius_top_right = 4
+	_xp_background_style.corner_radius_bottom_left = 4
+	_xp_background_style.corner_radius_bottom_right = 4
+
+	_xp_fill_style = StyleBoxFlat.new()
+	_xp_fill_style.bg_color = Color(0.30, 0.85, 1.0, 1.0)
+	_xp_fill_style.corner_radius_top_left = 4
+	_xp_fill_style.corner_radius_top_right = 4
+	_xp_fill_style.corner_radius_bottom_left = 4
+	_xp_fill_style.corner_radius_bottom_right = 4
+
+	xp_bar.add_theme_stylebox_override("background", _xp_background_style)
+	xp_bar.add_theme_stylebox_override("fill", _xp_fill_style)
+func _update_health_bar(current_health: int, max_health: int) -> void:
+	if health_bar == null:
+		return
+
+	if _health_fill_style == null:
+		_setup_health_bar()
+
+	max_health = max(1, max_health)
+	current_health = clamp(current_health, 0, max_health)
+
+	health_bar.min_value = 0
+	health_bar.max_value = max_health
+	health_bar.value = current_health
+	health_bar.tooltip_text = "Health %d / %d" % [current_health, max_health]
+
+	var ratio := float(current_health) / float(max_health)
+
+	if ratio > 0.66:
+		_health_fill_style.bg_color = Color(0.22, 0.85, 0.30, 1.0)
+	elif ratio > 0.33:
+		_health_fill_style.bg_color = Color(0.95, 0.78, 0.18, 1.0)
+	else:
+		_health_fill_style.bg_color = Color(0.88, 0.18, 0.18, 1.0)
+
+	health_bar.add_theme_stylebox_override("fill", _health_fill_style)
