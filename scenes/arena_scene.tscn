@@ -35,6 +35,16 @@ text = "Choose an Instinct"
 [node name="XpGainLabel" type="Label" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=639614931]
 layout_mode = 2
 
+[node name="SurvivorCardsRow" type="HBoxContainer" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=1982868243]
+layout_mode = 2
+
+[node name="RewardSeparator" type="HSeparator" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=1365037570]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RewardSubtitle" type="Label" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=785646774]
+layout_mode = 2
+
 [node name="RewardChoiceRow" type="HBoxContainer" parent="RewardOverlay/RewardPanel/RewardVBox" unique_id=204643066]
 layout_mode = 2
 

@@ -11,12 +11,16 @@ extends Control
 @onready var reward_title: Label = $RewardOverlay/RewardPanel/RewardVBox/RewardTitle
 @onready var xp_gain_label: Label = $RewardOverlay/RewardPanel/RewardVBox/XpGainLabel
 @onready var reward_choices_row: HBoxContainer = $RewardOverlay/RewardPanel/RewardVBox/RewardChoiceRow
+@onready var reward_subtitle: Label = $RewardOverlay/RewardPanel/RewardVBox/RewardSubtitle
+@onready var survivor_cards_row: HBoxContainer = $RewardOverlay/RewardPanel/RewardVBox/SurvivorCardsRow
+@onready var reward_vbox: VBoxContainer = $RewardOverlay/RewardPanel/RewardVBox
+@onready var reward_separator: HSeparator = $RewardOverlay/RewardPanel/RewardVBox/RewardSeparator
 var monster_card_scene = preload("res://scenes/monster_card.tscn")
 
 var visual_enemy_team: Array = []
 var visual_player_team: Array = []
 
-const CARD_WIDTH := 150
+const CARD_WIDTH := 185
 const CARD_HEIGHT := 250
 
 const ATTACK_ANIM_TIME := 0.28
@@ -75,6 +79,7 @@ func _ready() -> void:
 	_set_background()
 	reward_overlay.visible = false
 	_set_battle_paused_state(true)
+	
 
 	if turn_info_label != null:
 		turn_info_label.text = "Battle paused - issue commands"
@@ -110,11 +115,16 @@ func _ready() -> void:
 	combat_log.clear()
 	result_label.text = ""
 	_build_battle_state()
+	enemy_row.add_theme_constant_override("separation", 18)
+	player_row.add_theme_constant_override("separation", 18)
 	_render_teams()
 	_build_pause_dim()
 	_build_battle_ui()
 	_update_battle_ui_visibility()
 	_build_line_overlay()
+	_setup_reward_overlay_layout()
+	reward_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_style_reward_panel()
 	attack_button.disabled = true
 	defend_button.disabled = true
 	instinct_button.disabled = true
@@ -285,6 +295,20 @@ func _render_teams() -> void:
 			card.button_down.connect(_on_player_card_button_down.bind(i))
 
 		holder.add_child(card)
+		if i < player_units.size() and bool(player_units[i].get("has_taunt_toggle", false)):
+			var taunt_toggle := CheckButton.new()
+			taunt_toggle.text = "Taunt"
+			taunt_toggle.button_pressed = bool(player_units[i].get("is_taunting", false))
+			taunt_toggle.disabled = monster.health <= 0
+			taunt_toggle.focus_mode = Control.FOCUS_NONE
+			taunt_toggle.mouse_filter = Control.MOUSE_FILTER_STOP
+			taunt_toggle.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			taunt_toggle.custom_minimum_size = Vector2(82, 24)
+			taunt_toggle.position = Vector2(8, 8)
+			taunt_toggle.z_index = 20
+			taunt_toggle.tooltip_text = "Force enemies to target this creature"
+			taunt_toggle.toggled.connect(_on_taunt_toggle_changed.bind(i))
+			holder.add_child(taunt_toggle)
 		player_row.add_child(holder)
 func _run_combat() -> void:
 	GameState.pending_result = CombatResolver.resolve_combat(
@@ -299,11 +323,9 @@ func _run_combat() -> void:
 	_persist_player_combat_bonuses()
 
 	if GameState.pending_result.get("player_won", false):
-		result_label.text = "Victory!"
-		await _show_post_combat_rewards()
+		_show_post_combat_overlay(true)
 	else:
-		result_label.text = "Defeat!"
-		continue_button.disabled = false
+		_show_post_combat_overlay(false)
 func _play_combat_events(events: Array) -> void:
 	for event in events:
 		var event_type: String = str(event.get("type", ""))
@@ -594,10 +616,9 @@ func _animate_death(side: String, index: int) -> void:
 
 	await tween.finished
 func _on_continue_pressed() -> void:
-	#print("Continue pressed")
-
+	reward_overlay.visible = false
+	_set_reward_mode(false)
 	get_tree().change_scene_to_file("res://scenes/run_scene.tscn")
-	
 func _get_monster_from_entry(entry):
 	if entry == null:
 		return null
@@ -831,50 +852,11 @@ func _persist_player_combat_bonuses() -> void:
 		# Persist Blood Rush / Wildfire style permanent combat attack gains
 		board_monster.attack = int(survivor.get("attack", board_monster.attack))
 func _show_post_combat_rewards() -> void:
-	reward_overlay.visible = true
-	reward_panel.visible = true
-	reward_overlay.move_to_front()
-	continue_button.disabled = true
-	reward_title.text = "Choose an Instinct"
-
-	for child in reward_choices_row.get_children():
-		child.queue_free()
-
-	var survivors: Array = GameState.pending_result.get("player_survivors", [])
-	var xp_lines: Array[String] = []
-
-	for survivor in survivors:
-		if typeof(survivor) != TYPE_DICTIONARY:
-			continue
-		xp_lines.append("%s +1 XP" % str(survivor.get("name", "Unit")))
-
-	if xp_lines.is_empty():
-		xp_gain_label.text = "No XP gained."
-	else:
-		xp_gain_label.text = "XP Gain:\n" + "\n".join(xp_lines)
-
-	var choices: Array = GameState.build_instinct_reward_choices(3)
-
-	for instinct in choices:
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(210, 110)
-		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		button.text = "%s\n%s" % [
-			str(instinct.get("name", "Instinct")),
-			str(instinct.get("description", ""))
-		]
-
-		button.pressed.connect(func():
-			_take_reward_choice(instinct)
-		)
-
-		reward_choices_row.add_child(button)
-
+	_show_post_combat_overlay(true)
 func _take_reward_choice(instinct: Dictionary) -> void:
 	GameState.add_instinct_reward_to_hand(instinct)
-	combat_log.append_text("You gained %s.\n" % str(instinct.get("name", "Instinct")))
 	reward_overlay.visible = false
-	continue_button.disabled = false
+	_on_continue_pressed()
 func _build_battle_state() -> void:
 	
 	player_units.clear()
@@ -899,56 +881,97 @@ func _build_battle_state() -> void:
 			enemy_units.append(_monster_to_battle_unit(monster, "enemy", i))
 
 
-func _monster_to_battle_unit(monster, side: String, index: int) -> Dictionary:
-	var instinct_id := ""
-	var target_rule := "front"
-	var action_rule := "attack_only"
-	var base_speed := 35.0
+func _monster_has_modifier(monster, modifier_id: String) -> bool:
+	if monster == null:
+		return false
 
-	if monster.display_name == "Pebble":
-		instinct_id = "taunt"
-		target_rule = "self"
-		action_rule = "attack_only"
-		base_speed = 30.0
-	elif monster.display_name == "Imp":
-		instinct_id = "ignite"
-		target_rule = "lowest_hp"
-		action_rule = "attack_only"
-		base_speed = 42.0
-	elif monster.display_name == "Slime":
-		instinct_id = "oil"
-		target_rule = "lowest_hp"
-		action_rule = "attack_only"
-		base_speed = 32.0
-	elif monster.display_name == "Frost Wisp":
-		instinct_id = "buff"
-		target_rule = "lowest_hp"
-		action_rule = "attack_only"
-		base_speed = 38.0
-	elif monster.display_name == "Fang Adder":
-		instinct_id = "thorns"
-		target_rule = "lowest_hp"
-		action_rule = "attack_only"
-		base_speed = 36.0
-	elif monster.display_name == "Mossmender":
-		instinct_id = "cleanse"
-		target_rule = "lowest_hp_ally"
-		action_rule = "attack_only"
-		base_speed = 31.0
-	elif monster.display_name == "Wolf":
-		instinct_id = "shield"
-		target_rule = "lowest_hp"
-		action_rule = "attack_only"
-		base_speed = 40.0
-	elif monster.display_name == "Sheni":
-		instinct_id = "shield"
-		target_rule = "lowest_hp"
-		action_rule = "attack_only"
-		base_speed = 37.0	
+	var mods: Array = []
+
+	if monster is Dictionary:
+		mods = monster.get("modifiers", [])
+	else:
+		mods = monster.modifiers if "modifiers" in monster else []
+
+	return mods.has(modifier_id)
+
+
+func _monster_to_battle_unit(monster, side: String, index: int) -> Dictionary:
+	var instinct_id: String = ""
+	var attack_status_id: String = ""
+	var attack_status_duration: int = 0
+	var has_taunt_toggle: bool = false
+	var target_rule: String = "front"
+	var action_rule: String = "attack_only"
+	var base_speed: float = 35.0
+
+	var monster_id: String = ""
+	if monster is Dictionary:
+		monster_id = str(monster.get("id", ""))
+	else:
+		monster_id = str(monster.id)
+
+	# speeds / special non-status actives by stable id
+	match monster_id:
+		"golem", "stone_guardian", "tank":
+			base_speed = 30.0
+
+		"imp", "fireling", "bat":
+			base_speed = 42.0
+
+		"slime", "superslime":
+			base_speed = 32.0
+
+		"frost_wisp", "icebound_seer", "moth":
+			base_speed = 38.0
+
+		"fang_adder", "venom_maw", "spider":
+			base_speed = 36.0
+
+		"mossmender", "elder_mossmender", "shaman":
+			base_speed = 31.0
+			instinct_id = "heal"
+			target_rule = "lowest_hp_ally"
+
+		"wolf", "alpha_wolf":
+			base_speed = 40.0
+			# leave blank unless you still want shield here
+
+		"razor_mite", "razor_horror", "raptor":
+			base_speed = 37.0
+			# windfury not wired yet
+
+	# passive / on-hit behavior from modifiers
+	if _monster_has_modifier(monster, "taunt"):
+		has_taunt_toggle = true
+
+	if _monster_has_modifier(monster, "burn"):
+		attack_status_id = "burn"
+		attack_status_duration = 2
+	elif _monster_has_modifier(monster, "oil"):
+		attack_status_id = "grease"
+		attack_status_duration = 2
+	elif _monster_has_modifier(monster, "poison"):
+		attack_status_id = "poison"
+		attack_status_duration = 2
+	elif _monster_has_modifier(monster, "freeze"):
+		attack_status_id = "freeze"
+		attack_status_duration = 2
 
 	var speed_roll: float = randf_range(-3.0, 3.0)
 	var final_speed: float = maxf(20.0, base_speed + speed_roll)
-	var starting_atb: float = randf_range(0.0, 35.0)
+
+	var starting_atb: float = 0.0
+
+	if side == "player":
+		match index:
+			0:
+				starting_atb = 50.0
+			1:
+				starting_atb = 25.0
+			_:
+				starting_atb = 0.0
+	else:
+		starting_atb = randf_range(0.0, 10.0)
 
 	return {
 		"name": monster.display_name,
@@ -960,10 +983,13 @@ func _monster_to_battle_unit(monster, side: String, index: int) -> Dictionary:
 		"max_health": int(monster.max_health),
 		"is_defending": false,
 		"is_taunting": false,
+		"has_taunt_toggle": has_taunt_toggle,
 		"instinct_used": false,
 		"queued_action": "",
 		"source_monster": monster,
 		"instinct_id": instinct_id,
+		"attack_status_id": attack_status_id,
+		"attack_status_duration": attack_status_duration,
 		"modifiers": monster.modifiers.duplicate() if "modifiers" in monster else [],
 		"target_rule": target_rule,
 		"action_rule": action_rule,
@@ -1180,6 +1206,9 @@ func _perform_player_attack_from_index(attacker_index: int, target_side: String,
 			defender["name"], defender["health"]
 		])
 
+	if not blocked and int(defender["health"]) > 0:
+		await _apply_attack_on_hit_status(attacker, defender, target_side, target_index)
+
 	if int(defender["health"]) > 0:
 		await _apply_thorns_damage(target_side, target_index, "player", attacker_index)
 
@@ -1290,12 +1319,7 @@ func _end_battle(player_won: bool) -> void:
 	_refresh_visual_units()
 	_persist_player_combat_bonuses()
 
-	if player_won:
-		result_label.text = "Victory!"
-		await _show_post_combat_rewards()
-	else:
-		result_label.text = "Defeat!"
-		continue_button.disabled = false
+	_show_post_combat_overlay(player_won)
 func _build_player_survivors() -> Array:
 	var survivors: Array = []
 
@@ -1677,7 +1701,6 @@ func _perform_enemy_attack_from_index(attacker_index: int, target_index: int) ->
 	if bool(defender["is_defending"]):
 		damage = int(ceil(float(damage) * 0.5))
 
-	var defender_was_taunting := bool(defender.get("is_taunting", false))
 	var blocked := _try_consume_shield(defender, "player", target_index, damage)
 
 	if not blocked:
@@ -1695,11 +1718,6 @@ func _perform_enemy_attack_from_index(attacker_index: int, target_index: int) ->
 			defender["name"], defender["health"]
 		])
 
-	if defender_was_taunting and int(defender["health"]) > 0:
-		defender["is_taunting"] = false
-		var defender_mods: Array = defender.get("modifiers", []).duplicate()
-		defender_mods.erase("taunt")
-		defender["modifiers"] = defender_mods
 
 	if int(defender["health"]) > 0:
 		await _apply_thorns_damage("player", target_index, "enemy", attacker_index)
@@ -2039,7 +2057,7 @@ func _build_pause_dim() -> void:
 	pause_dim.offset_right = 0
 	pause_dim.offset_bottom = 0
 	pause_dim.color = Color(0, 0, 0, 0.28)
-	pause_dim.visible = false
+	pause_dim.visible = battle_paused
 	pause_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(pause_dim)
 func _update_atb_bars() -> void:
@@ -2146,24 +2164,16 @@ func _get_player_intent_text(index: int) -> String:
 	var cooldown := _get_instinct_cooldown_remaining(unit)
 	var target_side := str(unit.get("queued_target_side", "enemy"))
 	var target_units = player_units if target_side == "player" else enemy_units
+	var status_text := _get_attack_status_intent_text(unit)
 
 	if cooldown > 0:
 		return "COOLDOWN: %d" % cooldown
-
-	if queued_action == "taunt":
-		return "QUEUED: TAUNT"
 
 	if queued_action == "heal" \
 	or queued_action == "shield" \
 	or queued_action == "thorns" \
 	or queued_action == "cleanse" \
-	or queued_action == "buff" \
-	or queued_action == "ignite" \
-	or queued_action == "burn" \
-	or queued_action == "oil" \
-	or queued_action == "freeze" \
-	or queued_action == "poison" \
-	or queued_action == "bleed":
+	or queued_action == "buff":
 		if target_index >= 0 and target_index < target_units.size() and int(target_units[target_index]["health"]) > 0:
 			return "QUEUED: %s %s" % [
 				queued_action.capitalize(),
@@ -2172,12 +2182,12 @@ func _get_player_intent_text(index: int) -> String:
 		return "QUEUED: %s" % queued_action.capitalize()
 
 	if bool(unit.get("is_ready", false)):
-		return "READY: ATTACK"
+		return status_text if status_text != "" else "READY: ATTACK"
 
 	if target_index >= 0 and target_index < target_units.size() and int(target_units[target_index]["health"]) > 0:
 		return "TARGET: %s" % target_units[target_index]["name"]
 
-	return "AUTO: ATTACK"
+	return status_text if status_text != "" else "AUTO: ATTACK"
 func _get_enemy_intent_text(index: int) -> String:
 	if index < 0 or index >= enemy_units.size():
 		return ""
@@ -2186,9 +2196,12 @@ func _get_enemy_intent_text(index: int) -> String:
 	if int(unit["health"]) <= 0:
 		return "DEAD"
 
-	var instinct_id := str(unit.get("instinct_id", ""))
-	if instinct_id == "ignite":
-		return "IGNITE"
+	var status_text := _get_attack_status_intent_text(unit)
+	if status_text != "":
+		return status_text
+
+	if str(unit.get("instinct_id", "")) == "heal":
+		return "HEAL"
 
 	return "ATTACK"
 func _update_card_from_unit(side: String, index: int) -> void:
@@ -2568,8 +2581,11 @@ func _perform_player_targeted_instinct_from_index(attacker_index: int, target_si
 					defender["name"], defender["health"]
 				])
 
+			if not blocked and int(defender["health"]) > 0:
+				await _apply_attack_on_hit_status(attacker, defender, "player", target_index)
+
 			if int(defender["health"]) > 0:
-				await _apply_thorns_damage(target_side, target_index, "player", attacker_index)
+				await _apply_thorns_damage("player", target_index, "enemy", attacker_index)
 
 		"oil":
 			combat_log.append_text("%s uses Oil on %s\n" % [attacker["name"], defender["name"]])
@@ -2842,3 +2858,283 @@ func _on_enemy_target_selected(target_index: int) -> void:
 			await _perform_player_instinct(target_index)
 			
 ####################### END LEGACY #################################
+
+
+func _get_attack_status_intent_text(unit: Dictionary) -> String:
+	match str(unit.get("attack_status_id", "")):
+		"grease":
+			return "GREASE HIT"
+		"burn":
+			return "BURN HIT"
+		"poison":
+			return "POISON HIT"
+		"freeze":
+			return "FREEZE HIT"
+		_:
+			return ""
+
+func _set_unit_taunt_enabled(unit: Dictionary, enabled: bool) -> void:
+	unit["is_taunting"] = enabled
+
+	if enabled:
+		_add_modifier_to_unit(unit, "taunt")
+	else:
+		_remove_modifier_from_unit(unit, "taunt")
+
+func _on_taunt_toggle_changed(enabled: bool, index: int) -> void:
+	if index < 0 or index >= player_units.size():
+		return
+
+	var unit = player_units[index]
+	if int(unit["health"]) <= 0:
+		return
+
+	_set_unit_taunt_enabled(unit, enabled)
+
+	combat_log.append_text("%s %s taunt.\n" % [
+		unit["name"],
+		"enables" if enabled else "disables"
+	])
+
+	_refresh_visual_units()
+
+func _apply_attack_on_hit_status(attacker: Dictionary, defender: Dictionary, defender_side: String, defender_index: int) -> void:
+	var status_id := str(attacker.get("attack_status_id", ""))
+	if status_id == "" or int(defender["health"]) <= 0:
+		return
+
+	var turns: int = max(1, int(attacker.get("attack_status_duration", 2)))
+
+	match status_id:
+		"grease":
+			_add_timed_modifier_to_unit(defender, "greased", turns)
+			combat_log.append_text("%s is greased!\n" % defender["name"])
+
+		"burn":
+			var bonus_damage := 0
+			if _unit_has_modifier(defender, "greased"):
+				bonus_damage = 3
+
+			if bonus_damage > 0:
+				defender["health"] = max(0, int(defender["health"]) - bonus_damage)
+				_show_floating_burn_damage(defender_side, defender_index, bonus_damage)
+
+				combat_log.append_text("%s ignites the grease on %s for %d bonus damage (%d HP left)\n" % [
+					attacker["name"],
+					defender["name"],
+					bonus_damage,
+					defender["health"]
+				])
+
+			if int(defender["health"]) > 0:
+				_add_timed_modifier_to_unit(defender, "burning", turns)
+				combat_log.append_text("%s is burning!\n" % defender["name"])
+
+		"poison":
+			_add_timed_modifier_to_unit(defender, "poisoned", turns)
+			combat_log.append_text("%s is poisoned!\n" % defender["name"])
+
+		"freeze":
+			_add_timed_modifier_to_unit(defender, "frozen", turns)
+			combat_log.append_text("%s is frozen!\n" % defender["name"])
+
+		"bleed":
+			_add_timed_modifier_to_unit(defender, "bleeding", turns)
+			combat_log.append_text("%s is bleeding!\n" % defender["name"])
+func _clear_container(container: Node) -> void:
+	if container == null:
+		return
+
+	for child in container.get_children():
+		child.queue_free()
+
+
+func _build_post_combat_cards() -> void:
+	_clear_container(survivor_cards_row)
+
+	if survivor_cards_row == null:
+		return
+
+	survivor_cards_row.visible = true
+	survivor_cards_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	survivor_cards_row.add_theme_constant_override("separation", 18)
+	survivor_cards_row.custom_minimum_size = Vector2(0, CARD_HEIGHT + 18)
+
+	var survivor_slots: Dictionary = {}
+	var survivors: Array = GameState.pending_result.get("player_survivors", [])
+
+	for survivor in survivors:
+		if typeof(survivor) != TYPE_DICTIONARY:
+			continue
+		survivor_slots[int(survivor.get("slot_index", -1))] = true
+
+	for slot_index in range(min(GameState.board_monsters.size(), GameState.max_board_slots)):
+		var monster = GameState.board_monsters[slot_index]
+		if monster == null:
+			continue
+
+		var wrap := VBoxContainer.new()
+		wrap.alignment = BoxContainer.ALIGNMENT_CENTER
+		wrap.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+
+		var holder := Control.new()
+		holder.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+
+		var card = monster_card_scene.instantiate()
+		card.setup(monster.duplicate(true))
+		card.position = Vector2.ZERO
+
+		if card.has_method("set_combat_mode"):
+			card.set_combat_mode(false)
+
+		if card.has_method("set_combat_ui"):
+			card.set_combat_ui(false)
+
+		holder.add_child(card)
+
+		var xp_label := Label.new()
+		xp_label.custom_minimum_size = Vector2(CARD_WIDTH, 24)
+		xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		xp_label.add_theme_font_size_override("font_size", 22)
+		xp_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+		xp_label.add_theme_constant_override("outline_size", 5)
+		xp_label.position = Vector2(0, 226)
+		xp_label.z_index = 50
+		xp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		if survivor_slots.has(slot_index):
+			xp_label.text = "+1 XP"
+			xp_label.modulate = Color(0.72, 0.35, 1.0, 1.0)
+		else:
+			xp_label.text = "KO"
+			xp_label.modulate = Color(1.0, 0.35, 0.35, 1.0)
+			card.modulate = Color(1, 1, 1, 0.45)
+
+		holder.add_child(xp_label)
+		wrap.add_child(holder)
+		survivor_cards_row.add_child(wrap)
+func _build_instinct_choice_buttons() -> void:
+	_clear_container(reward_choices_row)
+
+	reward_choices_row.visible = true
+	reward_choices_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	reward_choices_row.add_theme_constant_override("separation", 18)
+	reward_choices_row.custom_minimum_size = Vector2(0, 130)
+
+	var choices: Array = GameState.build_instinct_reward_choices(3)
+
+	for instinct in choices:
+		var chosen_instinct: Dictionary = instinct
+
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(220, 108)
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.focus_mode = Control.FOCUS_NONE
+		button.text = "%s\n%s" % [
+			str(chosen_instinct.get("name", "Instinct")),
+			str(chosen_instinct.get("description", ""))
+		]
+
+		button.pressed.connect(func():
+			_take_reward_choice(chosen_instinct)
+		)
+
+		reward_choices_row.add_child(button)
+
+func _show_post_combat_overlay(player_won: bool) -> void:
+	reward_overlay.visible = true
+	reward_panel.visible = true
+	reward_overlay.move_to_front()
+	_set_reward_mode(true)
+
+	_build_post_combat_cards()
+
+	reward_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_title.add_theme_font_size_override("font_size", 42)
+	reward_title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	reward_title.add_theme_constant_override("outline_size", 8)
+
+	reward_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_subtitle.add_theme_font_size_override("font_size", 22)
+	reward_subtitle.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	reward_subtitle.add_theme_constant_override("outline_size", 5)
+
+	xp_gain_label.visible = false
+
+	if player_won:
+		reward_title.text = "VICTORY!"
+		reward_title.modulate = Color(0.35, 1.0, 0.45, 1.0)
+
+		reward_separator.visible = true
+		reward_subtitle.visible = true
+		reward_subtitle.text = "Choose 1 of 3 Instincts"
+
+		continue_button.visible = false
+		continue_button.disabled = true
+		_build_instinct_choice_buttons()
+	else:
+		reward_title.text = "DEFEAT"
+		reward_title.modulate = Color(1.0, 0.32, 0.32, 1.0)
+
+		reward_separator.visible = false
+		reward_subtitle.visible = false
+
+		continue_button.visible = true
+		continue_button.disabled = false
+		_clear_container(reward_choices_row)
+		reward_choices_row.visible = false
+
+	result_label.text = ""
+func _setup_reward_overlay_layout() -> void:
+	reward_panel.custom_minimum_size = Vector2(820, 790)
+
+	reward_vbox.add_theme_constant_override("separation", 18)
+
+	survivor_cards_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	survivor_cards_row.add_theme_constant_override("separation", 18)
+	survivor_cards_row.custom_minimum_size = Vector2(0, CARD_HEIGHT + 18)
+
+	reward_separator.custom_minimum_size = Vector2(0, 18)
+	reward_separator.visible = false
+
+	reward_subtitle.custom_minimum_size = Vector2(0, 34)
+	reward_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_subtitle.visible = false
+
+	reward_choices_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	reward_choices_row.add_theme_constant_override("separation", 18)
+	reward_choices_row.custom_minimum_size = Vector2(0, 130)
+
+	xp_gain_label.visible = false
+func _style_reward_panel() -> void:
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.04, 0.04, 0.08, 0.92) # last number = opacity
+	panel_style.border_color = Color(0.95, 0.82, 0.35, 0.95)
+	panel_style.border_width_left = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_bottom = 2
+	panel_style.corner_radius_top_left = 18
+	panel_style.corner_radius_top_right = 18
+	panel_style.corner_radius_bottom_right = 18
+	panel_style.corner_radius_bottom_left = 18
+	panel_style.content_margin_left = 18
+	panel_style.content_margin_top = 18
+	panel_style.content_margin_right = 18
+	panel_style.content_margin_bottom = 18
+
+	reward_panel.add_theme_stylebox_override("panel", panel_style)
+func _set_reward_mode(active: bool) -> void:
+	enemy_row.visible = not active
+	player_row.visible = not active
+	combat_log.visible = not active
+	result_label.visible = not active
+
+	if battle_ui != null:
+		battle_ui.visible = false if active else (battle_paused and not battle_over)
+
+	if line_layer != null:
+		line_layer.visible = not active
+
+	if pause_dim != null and active:
+		pause_dim.visible = false

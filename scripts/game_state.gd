@@ -895,7 +895,7 @@ func grant_monster_xp(monster: MonsterData, amount: int) -> void:
 		monster.max_health += 1
 		monster.health = min(monster.max_health, monster.health + 1)
 
-		if monster.level == 3 or monster.level == 6:
+		if monster.level == 10:
 			_try_evolve_monster(monster)
 			
 func _try_evolve_monster(monster: MonsterData) -> void:
