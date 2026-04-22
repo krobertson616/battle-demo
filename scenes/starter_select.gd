@@ -17,9 +17,9 @@ func _ready() -> void:
 
 	start_button.disabled = true
 	start_button.pressed.connect(_on_start_pressed)
-
 	_render_offer()
-
+	offer_grid.add_theme_constant_override("h_separation", 28)
+	offer_grid.add_theme_constant_override("v_separation", 28)
 
 func _render_offer() -> void:
 	for child in offer_grid.get_children():
@@ -29,50 +29,17 @@ func _render_offer() -> void:
 		var monster: MonsterData = starter_offer[i]
 		var selected := _is_selected(monster)
 
-		var frame := PanelContainer.new()
-		frame.custom_minimum_size = Vector2(190, 280)
-		frame.add_theme_stylebox_override("panel", _make_frame_style(selected))
-
-		var margin := MarginContainer.new()
-		margin.add_theme_constant_override("margin_left", 6)
-		margin.add_theme_constant_override("margin_right", 6)
-		margin.add_theme_constant_override("margin_top", 6)
-		margin.add_theme_constant_override("margin_bottom", 6)
-		frame.add_child(margin)
-
 		var card = monster_card_scene.instantiate()
 		card.custom_minimum_size = Vector2(170, 260)
 		card.setup(monster, "starter", i)
 		card.pressed.connect(_on_card_pressed.bind(i))
 
-		if selected:
-			card.modulate = Color(0.90, 0.94, 1.0, 1.0)
-		else:
-			card.modulate = Color(1, 1, 1, 1)
+		if card.has_method("set_selected"):
+			card.set_selected(selected)
 
-		margin.add_child(card)
-		offer_grid.add_child(frame)
+		offer_grid.add_child(card)
 
 	_update_help_and_button()
-
-
-func _make_frame_style(selected: bool) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.corner_radius_top_left = 10
-	sb.corner_radius_top_right = 10
-	sb.corner_radius_bottom_left = 10
-	sb.corner_radius_bottom_right = 10
-	sb.set_border_width_all(4)
-
-	if selected:
-		sb.bg_color = Color(0.73, 0.80, 0.90, 0.30)   # light grey-blue
-		sb.border_color = Color(0.74, 0.82, 0.95, 1.0)
-	else:
-		sb.bg_color = Color(0, 0, 0, 0)
-		sb.border_color = Color(0.25, 0.25, 0.25, 0.45)
-
-	return sb
-
 
 func _on_card_pressed(index: int) -> void:
 	if index < 0 or index >= starter_offer.size():

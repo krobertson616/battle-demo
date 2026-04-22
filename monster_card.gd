@@ -31,12 +31,21 @@ var _combat_mode: bool = false
 var _intent_text: String = ""
 var _intent_label: Label = null
 var _apply_data_queued: bool = false
+var _hovered: bool = false
+var _normal_panel_style: StyleBoxFlat
+var _hover_panel_style: StyleBoxFlat
+var _selected: bool = false
+var _selected_panel_style: StyleBoxFlat
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
 	toggle_mode = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
+
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
+
 	_apply_card_theme()
 
 	_set_children_mouse_ignore(panel_root)
@@ -44,7 +53,6 @@ func _ready() -> void:
 	if portrait != null:
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-
 
 	if card_vbox != null:
 		card_vbox.add_theme_constant_override("separation", 4)
@@ -76,25 +84,40 @@ func _ready() -> void:
 	if atb_bar != null:
 		atb_bar.custom_minimum_size = Vector2(0, 10)
 		atb_bar.show_percentage = false
-
+	if _monster_data != null:
+		_queue_apply_data()
 
 func _apply_card_theme() -> void:
 	if panel_root == null:
 		return
 
-	var normal_style := StyleBoxFlat.new()
-	normal_style.bg_color = Color(0.09, 0.09, 0.11, 0.96)
-	normal_style.border_color = Color(0.80, 0.66, 0.36, 1.0)
-	normal_style.set_border_width_all(3)
-	normal_style.corner_radius_top_left = 12
-	normal_style.corner_radius_top_right = 12
-	normal_style.corner_radius_bottom_left = 12
-	normal_style.corner_radius_bottom_right = 12
-	normal_style.shadow_color = Color(0, 0, 0, 0.28)
-	normal_style.shadow_size = 6
-	normal_style.shadow_offset = Vector2(0, 3)
+	_normal_panel_style = StyleBoxFlat.new()
+	_normal_panel_style.bg_color = Color(0.09, 0.09, 0.11, 0.96)
+	_normal_panel_style.border_color = Color(0.80, 0.66, 0.36, 1.0)
+	_normal_panel_style.set_border_width_all(3)
+	_normal_panel_style.corner_radius_top_left = 12
+	_normal_panel_style.corner_radius_top_right = 12
+	_normal_panel_style.corner_radius_bottom_left = 12
+	_normal_panel_style.corner_radius_bottom_right = 12
+	_normal_panel_style.shadow_color = Color(0, 0, 0, 0.28)
+	_normal_panel_style.shadow_size = 6
+	_normal_panel_style.shadow_offset = Vector2(0, 3)
 
-	panel_root.add_theme_stylebox_override("panel", normal_style)
+	_hover_panel_style = _normal_panel_style.duplicate()
+	_hover_panel_style.border_color = Color(0.58, 0.78, 1.0, 1.0)
+	_hover_panel_style.bg_color = Color(0.12, 0.16, 0.24, 0.98)
+	_hover_panel_style.set_border_width_all(4)
+	_hover_panel_style.shadow_size = 10
+	_hover_panel_style.shadow_offset = Vector2(0, 4)
+
+	_selected_panel_style = _normal_panel_style.duplicate()
+	_selected_panel_style.border_color = Color(0.58, 0.78, 1.0, 1.0)
+	_selected_panel_style.bg_color = Color(0.10, 0.14, 0.22, 0.98)
+	_selected_panel_style.set_border_width_all(4)
+	_selected_panel_style.shadow_size = 10
+	_selected_panel_style.shadow_offset = Vector2(0, 4)
+
+	panel_root.add_theme_stylebox_override("panel", _normal_panel_style)
 
 	if art_frame != null:
 		var art_style := StyleBoxFlat.new()
@@ -107,14 +130,6 @@ func _apply_card_theme() -> void:
 		art_style.corner_radius_bottom_right = 8
 		art_frame.add_theme_stylebox_override("panel", art_style)
 
-	var hover_style := normal_style.duplicate()
-	hover_style.bg_color = Color(0.12, 0.12, 0.15, 0.98)
-	hover_style.border_color = Color(0.92, 0.78, 0.46, 1.0)
-
-	var pressed_style := normal_style.duplicate()
-	pressed_style.bg_color = Color(0.07, 0.07, 0.09, 1.0)
-	pressed_style.border_color = Color(0.72, 0.86, 1.0, 1.0)
-
 	add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	add_theme_stylebox_override("hover", StyleBoxEmpty.new())
 	add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
@@ -123,14 +138,15 @@ func _apply_card_theme() -> void:
 
 	disabled = false
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-
+	_refresh_hover_visual()
 
 func setup(monster, p_source_type: String = "", p_source_index: int = -1) -> void:
 	_monster_data = monster
 	source_type = p_source_type
 	source_index = p_source_index
-	_queue_apply_data()
 
+	if is_node_ready():
+		_queue_apply_data()
 func _data_get(key: String, default_value = null):
 	if _monster_data == null:
 		return default_value
@@ -319,11 +335,14 @@ func _notification(what):
 func _update_modifier_label() -> void:
 	if modifier_label == null:
 		return
+
+	if _monster_data == null:
 		modifier_label.text = ""
 		modifier_label.visible = false
 		return
 
 	var parts: Array[String] = []
+	# rest of function...
 	var modifiers = _data_get("modifiers", [])
 	var equipped_modifiers = _data_get("equipped_modifiers", [])
 
@@ -746,3 +765,24 @@ func _set_children_mouse_ignore(node: Node) -> void:
 			c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			c.focus_mode = Control.FOCUS_NONE
 		_set_children_mouse_ignore(child)
+func _on_mouse_entered() -> void:
+	_hovered = true
+	_refresh_hover_visual()
+
+func _on_mouse_exited() -> void:
+	_hovered = false
+	_refresh_hover_visual()
+
+func _refresh_hover_visual() -> void:
+	if panel_root == null:
+		return
+
+	if _selected:
+		panel_root.add_theme_stylebox_override("panel", _selected_panel_style)
+	elif _hovered:
+		panel_root.add_theme_stylebox_override("panel", _hover_panel_style)
+	else:
+		panel_root.add_theme_stylebox_override("panel", _normal_panel_style)
+func set_selected(value: bool) -> void:
+	_selected = value
+	_refresh_hover_visual()
