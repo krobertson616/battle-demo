@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://dp0voil7yplh3"]
+
+[ext_resource type="Script" uid="uid://c4xhhbjpw5dfr" path="res://scripts/ability_chip.gd" id="1_2qv7h"]
+
+[node name="AbilityChip" type="PanelContainer" unique_id=1745832766]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_2qv7h")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=822460238]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer" unique_id=1260793437]
+layout_mode = 2

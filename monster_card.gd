@@ -12,11 +12,9 @@ const CARD_HEIGHT := 260
 @onready var card_vbox: VBoxContainer = $PanelContainer/MarginContainer/VBoxContainer
 @onready var art_frame: PanelContainer = $PanelContainer/MarginContainer/VBoxContainer/ArtFrame
 @onready var portrait: TextureRect = $PanelContainer/MarginContainer/VBoxContainer/ArtFrame/AspectRatioContainer/Portrait
-@onready var name_label: Label = $PanelContainer/MarginContainer/VBoxContainer/NameLabel
+@onready var name_label: Label = $PanelContainer/MarginContainer/VBoxContainer/TitleRow/NameLabel
+@onready var attack_label: Label = $PanelContainer/MarginContainer/VBoxContainer/TitleRow/AttackLabel
 @onready var modifier_label: Label = $PanelContainer/MarginContainer/VBoxContainer/UpgradeChips/ModifierLabel
-@onready var attack_label: Label = $PanelContainer/MarginContainer/VBoxContainer/StatsRow/AttackLabel
-@onready var slash_label: Label = $PanelContainer/MarginContainer/VBoxContainer/StatsRow/SlashLabel
-@onready var health_label: Label = $PanelContainer/MarginContainer/VBoxContainer/StatsRow/HealthLabel
 @onready var upgrade_chips: VBoxContainer = $PanelContainer/MarginContainer/VBoxContainer/UpgradeChips
 @onready var xp_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/ProgressBar
 @onready var atb_bar: ProgressBar = $PanelContainer/MarginContainer/VBoxContainer/AtbBar
@@ -42,6 +40,7 @@ var _health_background_style: StyleBoxFlat
 var _xp_fill_style: StyleBoxFlat
 var _xp_background_style: StyleBoxFlat
 var _health_bar_text: Label
+var ability_chip_scene = preload("res://ability_chip.tscn")
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
@@ -64,8 +63,8 @@ func _ready() -> void:
 		card_vbox.add_theme_constant_override("separation", 4)
 
 	if name_label != null:
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.add_theme_font_size_override("font_size", 20)
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		name_label.add_theme_font_size_override("font_size", 18)
 		name_label.add_theme_color_override("font_color", Color(0.95, 0.94, 0.90))
 		name_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
 		name_label.add_theme_constant_override("outline_size", 4)
@@ -77,11 +76,12 @@ func _ready() -> void:
 		modifier_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
 		modifier_label.add_theme_constant_override("outline_size", 4)
 
-	for lbl in [attack_label, slash_label, health_label]:
-		if lbl != null:
-			lbl.add_theme_font_size_override("font_size", 22)
-			lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
-			lbl.add_theme_constant_override("outline_size", 4)
+
+	if attack_label != null:
+		attack_label.add_theme_font_size_override("font_size", 16)
+		attack_label.add_theme_color_override("font_color", Color(0.95, 0.90, 0.78))
+		attack_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+		attack_label.add_theme_constant_override("outline_size", 3)
 
 	if health_bar != null:
 		_setup_health_bar()
@@ -215,19 +215,14 @@ func _apply_data() -> void:
 		level
 	]
 
-	attack_label.text = str(shown_attack)
-	health_label.visible = false
+	attack_label.text = "⚔ %d" % shown_attack
 	_update_health_bar(shown_health, max_health)
-	slash_label.visible = false
 	upgrade_chips.visible = not _combat_mode
 
 	if has_poisoned:
 		attack_label.modulate = Color(0.35, 1.0, 0.35, 1.0)
 	else:
 		attack_label.modulate = Color(1, 1, 1, 1)
-
-	health_label.modulate = Color(1, 1, 1, 1)
-	slash_label.modulate = Color(0.85, 0.85, 0.85, 1)
 
 	health_bar.visible = true
 	xp_bar.visible = true
@@ -356,70 +351,8 @@ func _notification(what):
 			GameState.sell_strip_ref.disable_drop_zone()
 
 func _update_modifier_label() -> void:
-	if modifier_label == null:
-		return
-
-	if _monster_data == null:
-		modifier_label.text = ""
+	if modifier_label != null:
 		modifier_label.visible = false
-		return
-
-	var parts: Array[String] = []
-	# rest of function...
-	var modifiers = _data_get("modifiers", [])
-	var equipped_modifiers = _data_get("equipped_modifiers", [])
-
-	for mod in modifiers:
-		match String(mod):
-			"taunt":
-				parts.append("TAUNT")
-			"burn":
-				parts.append("BURN")
-			"burning":
-				pass
-			"regenerate":
-				parts.append("REGEN")
-			"pack_hunter":
-				parts.append("PACK")
-			"oil":
-				parts.append("OIL")
-			"freeze":
-				parts.append("FREEZE")
-			"frozen":
-				pass
-			"poison":
-				parts.append("POISON")
-			"windfury":
-				parts.append("WINDFURY")
-			"poisoned":
-				pass
-			"greased":
-				pass
-			_:
-				parts.append(String(mod).to_upper())
-
-	for mod in equipped_modifiers:
-		match String(mod):
-			"thorns":
-				parts.append("THORNS")
-			"shield":
-				parts.append("SHIELD")
-			"parry":
-				parts.append("PARRY")
-			"oil":
-				parts.append("OIL")
-			_:
-				parts.append(String(mod).to_upper())
-
-	parts = _dedupe_string_array(parts)
-
-	if parts.is_empty():
-		modifier_label.text = ""
-		modifier_label.visible = false
-		return
-
-	modifier_label.text = " • ".join(parts)
-	modifier_label.visible = true
 func _dedupe_string_array(items: Array[String]) -> Array[String]:
 	var result: Array[String] = []
 	for item in items:
@@ -430,7 +363,43 @@ func _clear_upgrade_chips() -> void:
 	for child in upgrade_chips.get_children():
 		child.queue_free()
 
+func _add_passive_chip(text: String, tooltip: String, bg_color: Color) -> void:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.focus_mode = Control.FOCUS_NONE
+	panel.tooltip_text = tooltip
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = bg_color.lightened(0.18)
+	style.set_border_width_all(1)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+
+	panel.add_theme_stylebox_override("panel", style)
+
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_top", 2)
+	margin.add_theme_constant_override("margin_bottom", 2)
+
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.focus_mode = Control.FOCUS_NONE
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 2)
+
+	panel.add_child(margin)
+	margin.add_child(label)
+	upgrade_chips.add_child(panel)
 func _add_upgrade_chip(text: String, tooltip: String) -> void:
 	var chip := Label.new()
 	chip.text = text
@@ -448,6 +417,20 @@ func _update_slots_label() -> void:
 
 	if _monster_data == null:
 		return
+
+	var modifiers = _data_get("modifiers", [])
+
+	for mod in modifiers:
+		match String(mod):
+			"burn":
+				var chip = ability_chip_scene.instantiate()
+				chip.label_text = "🔥 BURN"
+				chip.tooltip_text_custom = "Auto-attacks apply Burning.\nBurning deals 1 damage\nat the start of the target's turn.\nGreased targets take\n+1 extra burn damage."
+				chip.chip_bg_color = Color(0.72, 0.28, 0.10, 1.0)
+				chip.tooltip_bg_color = Color(0.82, 0.33, 0.14, 1.0)
+				chip.tooltip_border_color = Color(1.0, 0.65, 0.25, 1.0)
+				chip.tooltip_text_color = Color(1, 1, 1, 1)
+				upgrade_chips.add_child(chip)
 
 	var total_slots: int = int(_data_get("modifier_slots", 0))
 	var equipped = _data_get("equipped_modifiers", [])
@@ -757,12 +740,8 @@ func update_combat_snapshot(monster, intent_text: String = "", ready: bool = fal
 	]
 
 	attack_label.text = str(shown_attack)
-	health_label.text = str(shown_health)
-	slash_label.text = " / "
 
 	attack_label.modulate = Color(0.35, 1.0, 0.35, 1.0) if has_poisoned else Color(1, 1, 1, 1)
-	health_label.modulate = Color(1, 1, 1, 1)
-	slash_label.modulate = Color(1, 1, 1, 1)
 
 	if xp_bar != null:
 		xp_bar.visible = false
