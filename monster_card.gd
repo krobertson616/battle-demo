@@ -476,6 +476,16 @@ a Taunt unit if able."""
 				chill_chip.tooltip_border_color = Color(0.78, 0.92, 1.0, 1.0)
 				chill_chip.tooltip_text_color = Color(1, 1, 1, 1)
 				upgrade_chips.add_child(chill_chip)
+			"heal":
+				var heal_chip = ability_chip_scene.instantiate()
+				heal_chip.label_text = "✨ HEAL"
+				heal_chip.tooltip_text_custom = """When ready, heals the most injured ally
+			for 3 instead of attacking."""
+				heal_chip.chip_bg_color = Color(0.26, 0.62, 0.36, 1.0)
+				heal_chip.tooltip_bg_color = Color(0.30, 0.72, 0.42, 1.0)
+				heal_chip.tooltip_border_color = Color(0.72, 1.0, 0.78, 1.0)
+				heal_chip.tooltip_text_color = Color(1, 1, 1, 1)
+				upgrade_chips.add_child(heal_chip)
 
 
 	var total_slots: int = int(_data_get("modifier_slots", 0))

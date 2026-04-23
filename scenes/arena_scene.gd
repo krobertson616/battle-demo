@@ -1722,8 +1722,13 @@ func _on_instinct_pressed() -> void:
 		_update_target_lines()
 		return
 
-	selected_action = "queue_instinct"
-	turn_info_label.text = "Drag %s to any target" % _get_instinct_button_text(unit)
+	if _is_ally_targeted_instinct(instinct_id):
+		selected_action = "queue_ally_instinct"
+		turn_info_label.text = "Drag %s to an ally" % _get_instinct_button_text(unit)
+	else:
+		selected_action = "queue_instinct"
+		turn_info_label.text = "Drag %s to an enemy" % _get_instinct_button_text(unit)
+
 	_refresh_visual_units()
 func _process(delta: float) -> void:
 	if battle_over:
@@ -1895,7 +1900,13 @@ func _dispatch_player_action(index: int) -> void:
 		var heal_target_index := int(player_units[index].get("queued_target_index", -1))
 		await _perform_player_heal_from_index(index, heal_target_side, heal_target_index)
 		return
+	var instinct_id := str(player_units[index].get("instinct_id", ""))
 
+	if queued_action == "" and instinct_id == "heal" and cooldown_remaining <= 0:
+		var auto_heal_target := _get_lowest_hp_injured_ally_index(player_units)
+		if auto_heal_target != -1:
+			await _perform_player_heal_from_index(index, "player", auto_heal_target)
+			return
 	if _is_targeted_instinct(queued_action):
 		var queued_target_side := str(player_units[index].get("queued_target_side", "enemy"))
 		var queued_target_index: int = int(player_units[index].get("queued_target_index", -1))
@@ -2046,6 +2057,13 @@ func _finish_drag_target_assignment() -> void:
 	var drop_target := _get_any_target_under_mouse()
 	var release_target_side := str(drop_target.get("side", ""))
 	var release_target_index := int(drop_target.get("index", -1))
+	if selected_action == "queue_ally_instinct" and release_target_side != "player":
+		release_target_side = ""
+		release_target_index = -1
+
+	if (selected_action == "queue_attack" or selected_action == "queue_instinct") and release_target_side != "enemy":
+		release_target_side = ""
+		release_target_index = -1
 
 	if release_target_side != "":
 		var target_units = player_units if release_target_side == "player" else enemy_units
@@ -2397,17 +2415,22 @@ func _get_player_intent_text(index: int) -> String:
 
 	if bool(unit.get("is_defending", false)):
 		return "DEFEND"
-
+	
 	var queued_action := str(unit.get("queued_action", ""))
 	var target_index: int = int(unit.get("queued_target_index", -1))
 	var cooldown := _get_instinct_cooldown_remaining(unit)
 	var target_side := str(unit.get("queued_target_side", "enemy"))
 	var target_units = player_units if target_side == "player" else enemy_units
 	var status_text := _get_attack_status_intent_text(unit)
-
+	
 	if cooldown > 0:
 		return "COOLDOWN: %d" % cooldown
-
+	if str(unit.get("instinct_id", "")) == "heal" and cooldown <= 0:
+		var heal_target := _get_lowest_hp_injured_ally_index(player_units)
+		if heal_target != -1:
+			if bool(unit.get("is_ready", false)):
+				return "READY: HEAL"
+			return "AUTO: HEAL"	
 	if queued_action == "heal" \
 	or queued_action == "shield" \
 	or queued_action == "thorns" \
