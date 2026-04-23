@@ -72,6 +72,8 @@ const THORNS_DAMAGE := 1
 const BUFF_ATTACK_AMOUNT := 2
 const BUFF_HEALTH_AMOUNT := 2
 
+const CHILL_ATB_REDUCTION_RATIO := 0.30
+
 func _ready() -> void:
 	randomize()
 	#print("ARENA selected_location =", GameState.selected_location)
@@ -969,6 +971,9 @@ func _monster_to_battle_unit(monster, side: String, index: int) -> Dictionary:
 	elif _monster_has_modifier(monster, "poison"):
 		attack_status_id = "poison"
 		attack_status_duration = 2
+	elif _monster_has_modifier(monster, "chill"):
+		attack_status_id = "chill"
+		attack_status_duration = 2
 	elif _monster_has_modifier(monster, "freeze"):
 		attack_status_id = "freeze"
 		attack_status_duration = 2
@@ -1395,8 +1400,11 @@ func _perform_player_attack_from_index(attacker_index: int, target_side: String,
 	if not blocked and int(defender["health"]) > 0:
 		await _apply_attack_on_hit_status(attacker, defender, target_side, target_index)
 
+	if not blocked and int(defender["health"]) > 0:
+		await _apply_attack_on_hit_status(attacker, defender, "player", target_index)
+
 	if int(defender["health"]) > 0:
-		await _apply_thorns_damage(target_side, target_index, "player", attacker_index)
+		await _apply_thorns_damage("player", target_index, "enemy", attacker_index)
 
 	_update_card_from_unit("player", attacker_index)
 	_update_card_from_unit(target_side, target_index)
@@ -3125,6 +3133,8 @@ func _get_attack_status_intent_text(unit: Dictionary) -> String:
 			return "POISON HIT"
 		"freeze":
 			return "FREEZE HIT"
+		"chill":
+			return "CHILL HIT"
 		_:
 			return ""
 
@@ -3188,7 +3198,14 @@ func _apply_attack_on_hit_status(attacker: Dictionary, defender: Dictionary, def
 		"poison":
 			_add_timed_modifier_to_unit(defender, "poisoned", turns)
 			combat_log.append_text("%s is poisoned!\n" % defender["name"])
-
+		"chill":
+			var chill_amount := _apply_chill_to_unit(defender)
+			combat_log.append_text("%s chills %s, reducing ATB by %d.\n" % [
+				attacker["name"],
+				defender["name"],
+				chill_amount
+			])
+			_update_card_from_unit(defender_side, defender_index)
 		"freeze":
 			_add_timed_modifier_to_unit(defender, "frozen", turns)
 			combat_log.append_text("%s is frozen!\n" % defender["name"])
@@ -3393,3 +3410,9 @@ func _set_reward_mode(active: bool) -> void:
 
 	if pause_dim != null and active:
 		pause_dim.visible = false
+func _apply_chill_to_unit(unit: Dictionary) -> int:
+	var atb_max := float(unit.get("atb_max", 100.0))
+	var chill_amount := int(round(atb_max * CHILL_ATB_REDUCTION_RATIO))
+	unit["atb"] = max(0.0, float(unit.get("atb", 0.0)) - chill_amount)
+	unit["is_ready"] = false
+	return chill_amount

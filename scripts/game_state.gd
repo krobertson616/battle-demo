@@ -168,10 +168,10 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 		m.modifiers.append("windfury")
 
 	if id == "frost_wisp":
-		m.modifiers.append("freeze")
+		m.modifiers.append("chill")
 
 	if id == "icebound_seer":
-		m.modifiers.append("freeze")
+		m.modifiers.append("chill")
 	if id == "wolf":
 		m.set_meta("texture", load("res://assets/shen.png"))
 	if id == "imp":

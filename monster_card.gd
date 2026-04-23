@@ -466,6 +466,16 @@ a Taunt unit if able."""
 				poison_chip.tooltip_border_color = Color(0.82, 0.62, 1.0, 1.0)
 				poison_chip.tooltip_text_color = Color(1, 1, 1, 1)
 				upgrade_chips.add_child(poison_chip)
+			"chill":
+				var chill_chip = ability_chip_scene.instantiate()
+				chill_chip.label_text = "❄ CHILL"
+				chill_chip.tooltip_text_custom = """Auto-attacks apply Chill.
+			Chill reduces the target's speed on hit."""
+				chill_chip.chip_bg_color = Color(0.34, 0.62, 0.90, 1.0)
+				chill_chip.tooltip_bg_color = Color(0.40, 0.70, 0.96, 1.0)
+				chill_chip.tooltip_border_color = Color(0.78, 0.92, 1.0, 1.0)
+				chill_chip.tooltip_text_color = Color(1, 1, 1, 1)
+				upgrade_chips.add_child(chill_chip)
 
 
 	var total_slots: int = int(_data_get("modifier_slots", 0))
