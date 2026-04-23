@@ -431,6 +431,42 @@ func _update_slots_label() -> void:
 				chip.tooltip_border_color = Color(1.0, 0.65, 0.25, 1.0)
 				chip.tooltip_text_color = Color(1, 1, 1, 1)
 				upgrade_chips.add_child(chip)
+			"taunt":
+				var taunt_chip = ability_chip_scene.instantiate()
+				taunt_chip.label_text = "🛡 TAUNT"
+				taunt_chip.tooltip_text_custom = """Enemies must target
+a Taunt unit if able."""
+				taunt_chip.chip_bg_color = Color(0.27, 0.38, 0.62, 1.0)
+				taunt_chip.tooltip_bg_color = Color(0.33, 0.46, 0.74, 1.0)
+				taunt_chip.tooltip_border_color = Color(0.68, 0.82, 1.0, 1.0)
+				taunt_chip.tooltip_text_color = Color(1, 1, 1, 1)
+				upgrade_chips.add_child(taunt_chip)
+			"oil":
+				var grease_chip = ability_chip_scene.instantiate()
+				grease_chip.label_text = "🛢 GREASE"
+				grease_chip.tooltip_text_custom = """Auto-attacks apply Greased.
+			Greased units have a chance
+			to miss attacks.
+			Burning deals +1 extra damage
+			to Greased units."""
+				grease_chip.chip_bg_color = Color(0.72, 0.62, 0.14, 1.0)
+				grease_chip.tooltip_bg_color = Color(0.84, 0.72, 0.18, 1.0)
+				grease_chip.tooltip_border_color = Color(1.0, 0.90, 0.35, 1.0)
+				grease_chip.tooltip_text_color = Color(1, 1, 1, 1)
+				upgrade_chips.add_child(grease_chip)
+			"poison":
+				var poison_chip = ability_chip_scene.instantiate()
+				poison_chip.label_text = "☠ POISON"
+				poison_chip.tooltip_text_custom = """Auto-attacks apply Poisoned.
+			Poisoned units take 1 damage
+			at the start of their turn.
+			Poisoned units deal -1 attack."""
+				poison_chip.chip_bg_color = Color(0.48, 0.24, 0.68, 1.0)
+				poison_chip.tooltip_bg_color = Color(0.58, 0.30, 0.78, 1.0)
+				poison_chip.tooltip_border_color = Color(0.82, 0.62, 1.0, 1.0)
+				poison_chip.tooltip_text_color = Color(1, 1, 1, 1)
+				upgrade_chips.add_child(poison_chip)
+
 
 	var total_slots: int = int(_data_get("modifier_slots", 0))
 	var equipped = _data_get("equipped_modifiers", [])
