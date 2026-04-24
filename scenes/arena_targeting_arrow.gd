@@ -11,7 +11,7 @@ const CORE_WIDTH: float = 6.0
 const ARROW_LENGTH: float = 34.0
 const ARROW_WIDTH: float = 22.0
 const SOURCE_RING_RADIUS: float = 18.0
-const TARGET_RING_RADIUS: float = 24.0
+const TARGET_RING_RADIUS: float = 36.0
 const QUEUED_LINE_OUTER_WIDTH: float = 5.0
 const QUEUED_LINE_INNER_WIDTH: float = 2.2
 
@@ -60,6 +60,9 @@ func _draw() -> void:
 		start_pos = _get_mouse_arrow_end()
 
 	var hover_enemy_index: int = int(arena.get("drag_hover_enemy_index"))
+	if hover_enemy_index < 0:
+		hover_enemy_index = _get_hovered_enemy_index()
+
 	var has_hover_target: bool = hover_enemy_index >= 0
 	var end_pos: Vector2 = _get_enemy_arrow_end(hover_enemy_index) if has_hover_target else _get_mouse_arrow_end()
 
@@ -70,7 +73,8 @@ func _draw() -> void:
 	if points.size() < 2:
 		return
 
-	# Draw the lock-on marker first so the arrow appears above it.
+	# Draw the lock-on marker first so the arrow appears above it, but make it big
+	# enough that it remains visible around the arrowhead.
 	if has_hover_target:
 		_draw_target_anchor(end_pos)
 
@@ -123,6 +127,13 @@ func _get_mouse_arrow_end() -> Vector2:
 
 	return _global_to_local(get_viewport().get_mouse_position())
 
+func _get_mouse_global_pos() -> Vector2:
+	var local_from_arena = arena.get("drag_mouse_local")
+	if typeof(local_from_arena) == TYPE_VECTOR2:
+		return arena.global_position + local_from_arena
+
+	return get_viewport().get_mouse_position()
+
 func _global_to_local(global_pos: Vector2) -> Vector2:
 	return get_global_transform().affine_inverse() * global_pos
 
@@ -141,6 +152,21 @@ func _get_card_in_row(row: HBoxContainer, index: int) -> Control:
 			return child as Control
 
 	return null
+
+func _get_hovered_enemy_index() -> int:
+	if enemy_row == null or not is_instance_valid(enemy_row):
+		return -1
+
+	var mouse_global: Vector2 = _get_mouse_global_pos()
+	for i in range(enemy_row.get_child_count()):
+		var card: Control = _get_card_in_row(enemy_row, i)
+		if card == null:
+			continue
+
+		if card.get_global_rect().grow(12.0).has_point(mouse_global):
+			return i
+
+	return -1
 
 func _build_curve_points(start_pos: Vector2, end_pos: Vector2) -> PackedVector2Array:
 	var points := PackedVector2Array()
@@ -253,19 +279,29 @@ func _draw_source_anchor(pos: Vector2) -> void:
 	draw_circle(pos, 5.5, Color(1.0, 0.82, 0.3, 1.0))
 
 func _draw_target_anchor(pos: Vector2) -> void:
-	var pulse_radius: float = TARGET_RING_RADIUS + sin(_pulse + 1.2) * 3.0
+	var pulse_radius: float = TARGET_RING_RADIUS + sin(_pulse + 1.2) * 5.0
+	var outer_radius: float = pulse_radius + 12.0
+	var crosshair_color := Color(1.0, 0.92, 0.18, 1.0)
+	var crosshair_shadow := Color(0.08, 0.0, 0.0, 0.82)
 
-	# Lock-on crosshair is intentionally drawn before the arrow body/head, so it sits below the arrow.
-	draw_circle(pos, pulse_radius + 10.0, Color(1.0, 0.12, 0.06, 0.20))
-	draw_circle(pos, pulse_radius + 3.0, Color(1.0, 0.22, 0.06, 0.08))
-	draw_arc(pos, pulse_radius, 0.0, TAU, 40, Color(1.0, 0.24, 0.08, 0.95), 4.5, true)
-	draw_arc(pos, pulse_radius + 7.0, 0.0, TAU, 40, Color(1.0, 0.76, 0.28, 0.50), 2.0, true)
+	# Lock-on crosshair is drawn before the arrow body/head, so it sits below the arrow,
+	# but it is oversized so it remains visible around the arrowhead.
+	draw_circle(pos, outer_radius + 10.0, Color(1.0, 0.16, 0.04, 0.20))
+	draw_circle(pos, pulse_radius + 3.0, Color(1.0, 0.22, 0.06, 0.10))
+	draw_arc(pos, pulse_radius, 0.0, TAU, 56, crosshair_shadow, 8.0, true)
+	draw_arc(pos, pulse_radius, 0.0, TAU, 56, crosshair_color, 4.0, true)
+	draw_arc(pos, outer_radius, 0.0, TAU, 56, Color(1.0, 0.56, 0.10, 0.55), 2.0, true)
 
-	draw_line(pos + Vector2(-pulse_radius - 10.0, 0.0), pos + Vector2(-8.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
-	draw_line(pos + Vector2(8.0, 0.0), pos + Vector2(pulse_radius + 10.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
-	draw_line(pos + Vector2(0.0, -pulse_radius - 10.0), pos + Vector2(0.0, -8.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
-	draw_line(pos + Vector2(0.0, 8.0), pos + Vector2(0.0, pulse_radius + 10.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
-	draw_circle(pos, 4.0, Color(1.0, 0.85, 0.35, 1.0))
+	_draw_crosshair_segment(pos + Vector2(-outer_radius - 14.0, 0.0), pos + Vector2(-14.0, 0.0), crosshair_shadow, crosshair_color)
+	_draw_crosshair_segment(pos + Vector2(14.0, 0.0), pos + Vector2(outer_radius + 14.0, 0.0), crosshair_shadow, crosshair_color)
+	_draw_crosshair_segment(pos + Vector2(0.0, -outer_radius - 14.0), pos + Vector2(0.0, -14.0), crosshair_shadow, crosshair_color)
+	_draw_crosshair_segment(pos + Vector2(0.0, 14.0), pos + Vector2(0.0, outer_radius + 14.0), crosshair_shadow, crosshair_color)
+	draw_circle(pos, 5.0, crosshair_shadow)
+	draw_circle(pos, 3.0, crosshair_color)
+
+func _draw_crosshair_segment(a: Vector2, b: Vector2, shadow_color: Color, main_color: Color) -> void:
+	draw_line(a, b, shadow_color, 7.0, true)
+	draw_line(a, b, main_color, 3.0, true)
 
 func _has_queued_enemy_targets() -> bool:
 	var player_units = arena.get("player_units")
