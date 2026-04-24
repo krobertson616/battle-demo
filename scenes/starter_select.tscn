@@ -59,12 +59,12 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(860, 700)
+custom_minimum_size = Vector2(460, 700)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_starter_panel")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer" unique_id=928160895]
-custom_minimum_size = Vector2(800, 640)
+custom_minimum_size = Vector2(400, 640)
 layout_mode = 2
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/PanelContainer/VBoxContainer" unique_id=76059959]
@@ -79,7 +79,7 @@ horizontal_alignment = 1
 [node name="OfferGrid" type="GridContainer" parent="CenterContainer/PanelContainer/VBoxContainer" unique_id=1943215151]
 layout_mode = 2
 size_flags_horizontal = 4
-columns = 4
+columns = 2
 
 [node name="StartButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer" unique_id=81296487]
 layout_mode = 2
