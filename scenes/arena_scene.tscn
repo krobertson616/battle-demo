@@ -1,6 +1,7 @@
-[gd_scene format=3 uid="uid://07y7kpfxcwto"]
+[gd_scene load_steps=3 format=3 uid="uid://07y7kpfxcwto"]
 
 [ext_resource type="Script" uid="uid://dvgrxxqwig57x" path="res://scenes/arena_scene.gd" id="1_r8trg"]
+[ext_resource type="Script" path="res://scenes/arena_card_drag_lift.gd" id="2_draglift"]
 
 [node name="ArenaScene" type="Control" unique_id=422312403]
 layout_mode = 3
@@ -10,6 +11,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_r8trg")
+
+[node name="CardDragLift" type="Node" parent="."]
+script = ExtResource("2_draglift")
 
 [node name="RewardOverlay" type="CenterContainer" parent="." unique_id=579206431]
 layout_mode = 1
