@@ -1,8 +1,9 @@
-[gd_scene format=3 uid="uid://sij1yn425cue"]
+[gd_scene load_steps=6 format=3 uid="uid://sij1yn425cue"]
 
 [ext_resource type="Script" uid="uid://dw0fcolkcw7wr" path="res://scenes/run_scene.gd" id="1_nm65f"]
 [ext_resource type="Texture2D" uid="uid://chgabq7egfr5q" path="res://assets/backgroundmain.png" id="2_bkspu"]
 [ext_resource type="Script" uid="uid://xkph3le33qgo" path="res://scenes/shop_row_drop_target.gd" id="2_igvb1"]
+[ext_resource type="Script" path="res://scenes/run_card_drag_feedback.gd" id="2_dragfeedback"]
 [ext_resource type="Script" uid="uid://l48crwf50qd2" path="res://scenes/sellstrip.gd" id="3_bkspu"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_igvb1"]
@@ -16,6 +17,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_nm65f")
+
+[node name="RunCardDragFeedback" type="Node" parent="."]
+script = ExtResource("2_dragfeedback")
 
 [node name="TextureRect" type="TextureRect" parent="." unique_id=680700695]
 layout_mode = 1
