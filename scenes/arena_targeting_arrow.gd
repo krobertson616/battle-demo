@@ -12,6 +12,8 @@ const ARROW_LENGTH: float = 34.0
 const ARROW_WIDTH: float = 22.0
 const SOURCE_RING_RADIUS: float = 18.0
 const TARGET_RING_RADIUS: float = 24.0
+const QUEUED_LINE_OUTER_WIDTH: float = 5.0
+const QUEUED_LINE_INNER_WIDTH: float = 2.2
 
 @onready var arena: Control = get_parent() as Control
 @onready var player_row: HBoxContainer = arena.get_node("MarginContainer/VBoxContainer/PlayerRow")
@@ -32,12 +34,19 @@ func _process(delta: float) -> void:
 	_pulse += delta * 4.0
 	_sync_to_viewport()
 	_hide_and_clear_old_line()
-	visible = arena != null and is_instance_valid(arena) and bool(arena.get("drag_assigning"))
+
+	var is_dragging: bool = arena != null and is_instance_valid(arena) and bool(arena.get("drag_assigning"))
+	var should_show_queued_lines: bool = arena != null and is_instance_valid(arena) and bool(arena.get("battle_paused")) and _has_queued_enemy_targets()
+	visible = is_dragging or should_show_queued_lines
+
 	queue_redraw()
 
 func _draw() -> void:
 	if arena == null or not is_instance_valid(arena):
 		return
+
+	if bool(arena.get("battle_paused")):
+		_draw_queued_target_lines()
 
 	if not bool(arena.get("drag_assigning")):
 		return
@@ -103,7 +112,7 @@ func _get_enemy_arrow_end(index: int) -> Vector2:
 		return _get_mouse_arrow_end()
 
 	var rect: Rect2 = card.get_global_rect()
-	var global_pos: Vector2 = rect.position + Vector2(rect.size.x * 0.5, rect.size.y * 0.68)
+	var global_pos: Vector2 = rect.position + Vector2(rect.size.x * 0.5, rect.size.y * 0.5)
 	return _global_to_local(global_pos)
 
 func _get_mouse_arrow_end() -> Vector2:
@@ -134,11 +143,13 @@ func _get_card_in_row(row: HBoxContainer, index: int) -> Control:
 
 func _build_curve_points(start_pos: Vector2, end_pos: Vector2) -> PackedVector2Array:
 	var points := PackedVector2Array()
+	var delta: Vector2 = end_pos - start_pos
+	var distance: float = maxf(delta.length(), 1.0)
 	var mid: Vector2 = start_pos.lerp(end_pos, 0.5)
-	var vertical_distance: float = absf(start_pos.y - end_pos.y)
-	var curve_lift: float = clampf(vertical_distance * 0.28 + 70.0, 70.0, 180.0)
-	var side_pull: float = clampf((end_pos.x - start_pos.x) * 0.12, -60.0, 60.0)
-	var control: Vector2 = mid + Vector2(side_pull, -curve_lift)
+	var normal: Vector2 = Vector2(-delta.y, delta.x).normalized()
+	var bend_sign: float = 1.0 if end_pos.x >= start_pos.x else -1.0
+	var bend_amount: float = clampf(distance * 0.13, 28.0, 88.0)
+	var control: Vector2 = mid + normal * bend_amount * bend_sign
 
 	for i in range(CURVE_STEPS + 1):
 		var t: float = float(i) / float(CURVE_STEPS)
@@ -154,21 +165,46 @@ func _quadratic_bezier(a: Vector2, b: Vector2, c: Vector2, t: float) -> Vector2:
 func _draw_arrow_body(points: PackedVector2Array, has_hover_target: bool) -> void:
 	var glow_alpha: float = 0.72 if has_hover_target else 0.56
 	var core_alpha: float = 1.0 if has_hover_target else 0.92
+	var body_points: PackedVector2Array = _trim_curve_tail(points, ARROW_LENGTH * 0.45)
 
 	# Dark readable outline.
-	draw_polyline(points, Color(0.08, 0.0, 0.0, 0.82), OUTER_WIDTH, true)
+	draw_polyline(body_points, Color(0.08, 0.0, 0.0, 0.82), OUTER_WIDTH, true)
 
 	# Warm magical body.
-	draw_polyline(points, Color(1.0, 0.22, 0.08, glow_alpha), GLOW_WIDTH, true)
+	draw_polyline(body_points, Color(1.0, 0.22, 0.08, glow_alpha), GLOW_WIDTH, true)
 
 	# Bright inner highlight, with a tiny pulse.
 	var pulse_width: float = CORE_WIDTH + sin(_pulse) * 1.1
-	draw_polyline(points, Color(1.0, 0.76, 0.28, core_alpha), pulse_width, true)
+	draw_polyline(body_points, Color(1.0, 0.76, 0.28, core_alpha), pulse_width, true)
+
+func _trim_curve_tail(points: PackedVector2Array, trim_amount: float) -> PackedVector2Array:
+	if points.size() < 3:
+		return points
+
+	var trimmed := PackedVector2Array()
+	for point in points:
+		trimmed.append(point)
+
+	var remaining_trim: float = trim_amount
+	while trimmed.size() >= 2 and remaining_trim > 0.0:
+		var last_index: int = trimmed.size() - 1
+		var tip: Vector2 = trimmed[last_index]
+		var prev: Vector2 = trimmed[last_index - 1]
+		var segment_length: float = tip.distance_to(prev)
+
+		if segment_length <= remaining_trim and trimmed.size() > 2:
+			trimmed.remove_at(last_index)
+			remaining_trim -= segment_length
+		else:
+			var dir: Vector2 = (tip - prev).normalized()
+			trimmed[last_index] = tip - dir * remaining_trim
+			remaining_trim = 0.0
+
+	return trimmed
 
 func _draw_arrow_head(points: PackedVector2Array, has_hover_target: bool) -> void:
 	var tip: Vector2 = points[points.size() - 1]
-	var prev: Vector2 = points[points.size() - 2]
-	var dir: Vector2 = (tip - prev).normalized()
+	var dir: Vector2 = _get_tip_direction(points)
 	if dir == Vector2.ZERO:
 		return
 
@@ -197,6 +233,18 @@ func _draw_arrow_head(points: PackedVector2Array, has_hover_target: bool) -> voi
 		[Color(1.0, 0.83, 0.35, 0.95)]
 	)
 
+func _get_tip_direction(points: PackedVector2Array) -> Vector2:
+	var tip: Vector2 = points[points.size() - 1]
+
+	for i in range(points.size() - 2, -1, -1):
+		var candidate: Vector2 = points[i]
+		if tip.distance_to(candidate) >= 16.0:
+			var dir: Vector2 = (tip - candidate).normalized()
+			if dir != Vector2.ZERO:
+				return dir
+
+	return (tip - points[0]).normalized()
+
 func _draw_source_anchor(pos: Vector2) -> void:
 	var pulse_radius: float = SOURCE_RING_RADIUS + sin(_pulse) * 2.0
 	draw_circle(pos, pulse_radius + 5.0, Color(1.0, 0.22, 0.08, 0.16))
@@ -208,3 +256,61 @@ func _draw_target_anchor(pos: Vector2) -> void:
 	draw_circle(pos, pulse_radius + 8.0, Color(1.0, 0.12, 0.06, 0.20))
 	draw_arc(pos, pulse_radius, 0.0, TAU, 40, Color(1.0, 0.24, 0.08, 0.95), 4.5, true)
 	draw_arc(pos, pulse_radius + 7.0, 0.0, TAU, 40, Color(1.0, 0.76, 0.28, 0.50), 2.0, true)
+
+	# Crosshair lock-on mark.
+	draw_line(pos + Vector2(-pulse_radius - 8.0, 0.0), pos + Vector2(-8.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_line(pos + Vector2(8.0, 0.0), pos + Vector2(pulse_radius + 8.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_line(pos + Vector2(0.0, -pulse_radius - 8.0), pos + Vector2(0.0, -8.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_line(pos + Vector2(0.0, 8.0), pos + Vector2(0.0, pulse_radius + 8.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_circle(pos, 4.0, Color(1.0, 0.85, 0.35, 1.0))
+
+func _has_queued_enemy_targets() -> bool:
+	var player_units = arena.get("player_units")
+	if typeof(player_units) != TYPE_ARRAY:
+		return false
+
+	for unit in player_units:
+		if typeof(unit) != TYPE_DICTIONARY:
+			continue
+		if int(unit.get("health", 1)) <= 0:
+			continue
+		if str(unit.get("queued_target_side", "enemy")) != "enemy":
+			continue
+		if int(unit.get("queued_target_index", -1)) >= 0:
+			return true
+
+	return false
+
+func _draw_queued_target_lines() -> void:
+	var player_units = arena.get("player_units")
+	if typeof(player_units) != TYPE_ARRAY:
+		return
+
+	for i in range(player_units.size()):
+		var unit = player_units[i]
+		if typeof(unit) != TYPE_DICTIONARY:
+			continue
+		if int(unit.get("health", 1)) <= 0:
+			continue
+		if str(unit.get("queued_target_side", "enemy")) != "enemy":
+			continue
+
+		var target_index: int = int(unit.get("queued_target_index", -1))
+		if target_index < 0:
+			continue
+
+		var start_pos: Vector2 = _get_player_arrow_start(i)
+		var end_pos: Vector2 = _get_enemy_arrow_end(target_index)
+		if start_pos == Vector2.INF or end_pos == Vector2.INF:
+			continue
+
+		_draw_thin_queued_line(start_pos, end_pos)
+
+func _draw_thin_queued_line(start_pos: Vector2, end_pos: Vector2) -> void:
+	var points: PackedVector2Array = _build_curve_points(start_pos, end_pos)
+	if points.size() < 2:
+		return
+
+	draw_polyline(points, Color(0.02, 0.0, 0.0, 0.58), QUEUED_LINE_OUTER_WIDTH, true)
+	draw_polyline(points, Color(1.0, 0.58, 0.18, 0.78), QUEUED_LINE_INNER_WIDTH, true)
+	draw_circle(end_pos, 5.0, Color(1.0, 0.72, 0.28, 0.82))
