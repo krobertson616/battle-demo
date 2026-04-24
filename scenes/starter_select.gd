@@ -1,6 +1,9 @@
 extends Control
 
 const STARTER_OFFER_COUNT := 4
+const EXTRA_STARTER_IDS: Array[String] = [
+	"razor_mite" # Rosssie
+]
 
 @onready var title_label: Label = $CenterContainer/PanelContainer/VBoxContainer/TitleLabel
 @onready var help_label: Label = $CenterContainer/PanelContainer/VBoxContainer/HelpLabel
@@ -15,13 +18,23 @@ func _ready() -> void:
 	help_label.text = "Click 3 monsters to build your starting team."
 
 	GameState.clear_starter_team()
-	starter_offer = _build_random_unique_starter_offer(GameState.build_starter_offer(), STARTER_OFFER_COUNT)
+	starter_offer = _build_random_unique_starter_offer(_build_starter_offer_pool(), STARTER_OFFER_COUNT)
 
 	start_button.disabled = true
 	start_button.pressed.connect(_on_start_pressed)
 	_render_offer()
 	offer_grid.add_theme_constant_override("h_separation", 28)
 	offer_grid.add_theme_constant_override("v_separation", 28)
+
+func _build_starter_offer_pool() -> Array[MonsterData]:
+	var offer_pool: Array[MonsterData] = GameState.build_starter_offer()
+
+	for monster_id in EXTRA_STARTER_IDS:
+		var monster: MonsterData = GameState.get_monster_by_id(monster_id)
+		if monster != null:
+			offer_pool.append(monster)
+
+	return offer_pool
 
 func _build_random_unique_starter_offer(offer_pool: Array[MonsterData], offer_count: int) -> Array[MonsterData]:
 	var unique_offer: Array[MonsterData] = []
