@@ -1372,46 +1372,60 @@ func _perform_player_attack_from_index(attacker_index: int, target_side: String,
 		_finish_unit_action("player", attacker_index)
 		return
 
-	combat_log.append_text("%s attacks %s\n" % [attacker["name"], defender["name"]])
+	var swings := _get_attack_swings(attacker)
 
-	await _animate_attack("player", attacker_index, target_side, target_index)
+	for swing in range(swings):
+		if int(attacker["health"]) <= 0:
+			break
+		if int(defender["health"]) <= 0:
+			break
 
-	var damage := int(attacker["attack"])
-	if bool(defender["is_defending"]):
-		damage = int(ceil(float(damage) * 0.5))
+		if swing == 0:
+			combat_log.append_text("%s attacks %s\n" % [attacker["name"], defender["name"]])
+		else:
+			combat_log.append_text("%s attacks again!\n" % attacker["name"])
 
-	var blocked := _try_consume_shield(defender, target_side, target_index, damage)
+		await _animate_attack("player", attacker_index, target_side, target_index)
 
-	if not blocked:
-		defender["health"] = max(0, int(defender["health"]) - damage)
-		defender["is_defending"] = false
+		var damage := int(attacker["attack"])
+		if bool(defender["is_defending"]):
+			damage = int(ceil(float(damage) * 0.5))
 
-		_show_floating_damage(target_side, target_index, damage)
-		await _animate_hit(target_side, target_index)
+		var blocked := _try_consume_shield(defender, target_side, target_index, damage)
 
-		combat_log.append_text("%s takes %d damage (%d HP left)\n" % [
-			defender["name"], damage, defender["health"]
-		])
-	else:
-		combat_log.append_text("%s takes 0 damage (%d HP left)\n" % [
-			defender["name"], defender["health"]
-		])
+		if not blocked:
+			defender["health"] = max(0, int(defender["health"]) - damage)
+			defender["is_defending"] = false
 
-	if not blocked and int(defender["health"]) > 0:
-		await _apply_attack_on_hit_status(attacker, defender, target_side, target_index)
+			_show_floating_damage(target_side, target_index, damage)
+			await _animate_hit(target_side, target_index)
 
-	if not blocked and int(defender["health"]) > 0:
-		await _apply_attack_on_hit_status(attacker, defender, "player", target_index)
+			combat_log.append_text("%s takes %d damage (%d HP left)\n" % [
+				defender["name"], damage, defender["health"]
+			])
+		else:
+			combat_log.append_text("%s takes 0 damage (%d HP left)\n" % [
+				defender["name"], defender["health"]
+			])
 
-	if int(defender["health"]) > 0:
-		await _apply_thorns_damage("player", target_index, "enemy", attacker_index)
+		if not blocked and int(defender["health"]) > 0:
+			await _apply_attack_on_hit_status(attacker, defender, target_side, target_index)
 
-	_update_card_from_unit("player", attacker_index)
-	_update_card_from_unit(target_side, target_index)
-	_finalize_action_visuals(true)
+		if int(defender["health"]) > 0:
+			await _apply_thorns_damage(target_side, target_index, "player", attacker_index)
 
-	if int(defender["health"]) <= 0:
-		await _handle_unit_death(target_side, target_index)
+		_update_card_from_unit("player", attacker_index)
+		_update_card_from_unit(target_side, target_index)
+		_finalize_action_visuals(true)
+
+		if int(defender["health"]) <= 0:
+			await _handle_unit_death(target_side, target_index)
+			if _check_for_battle_end():
+				return
+			break
+
+		if swing < swings - 1:
+			await get_tree().create_timer(0.08).timeout
 
 	if _check_for_battle_end():
 		return
@@ -1943,41 +1957,60 @@ func _perform_enemy_attack_from_index(attacker_index: int, target_index: int) ->
 	if int(attacker["health"]) <= 0 or int(defender["health"]) <= 0:
 		return
 
-	combat_log.append_text("%s attacks %s\n" % [attacker["name"], defender["name"]])
+	var swings := _get_attack_swings(attacker)
 
-	await _animate_attack("enemy", attacker_index, "player", target_index)
+	for swing in range(swings):
+		if int(attacker["health"]) <= 0:
+			break
+		if int(defender["health"]) <= 0:
+			break
 
-	var damage := int(attacker["attack"])
-	if bool(defender["is_defending"]):
-		damage = int(ceil(float(damage) * 0.5))
+		if swing == 0:
+			combat_log.append_text("%s attacks %s\n" % [attacker["name"], defender["name"]])
+		else:
+			combat_log.append_text("%s attacks again!\n" % attacker["name"])
 
-	var blocked := _try_consume_shield(defender, "player", target_index, damage)
+		await _animate_attack("enemy", attacker_index, "player", target_index)
 
-	if not blocked:
-		defender["health"] = max(0, int(defender["health"]) - damage)
-		defender["is_defending"] = false
+		var damage := int(attacker["attack"])
+		if bool(defender["is_defending"]):
+			damage = int(ceil(float(damage) * 0.5))
 
-		_show_floating_damage("player", target_index, damage)
-		await _animate_hit("player", target_index)
+		var blocked := _try_consume_shield(defender, "player", target_index, damage)
 
-		combat_log.append_text("%s takes %d damage (%d HP left)\n" % [
-			defender["name"], damage, defender["health"]
-		])
-	else:
-		combat_log.append_text("%s takes 0 damage (%d HP left)\n" % [
-			defender["name"], defender["health"]
-		])
+		if not blocked:
+			defender["health"] = max(0, int(defender["health"]) - damage)
+			defender["is_defending"] = false
 
+			_show_floating_damage("player", target_index, damage)
+			await _animate_hit("player", target_index)
 
-	if int(defender["health"]) > 0:
-		await _apply_thorns_damage("player", target_index, "enemy", attacker_index)
+			combat_log.append_text("%s takes %d damage (%d HP left)\n" % [
+				defender["name"], damage, defender["health"]
+			])
+		else:
+			combat_log.append_text("%s takes 0 damage (%d HP left)\n" % [
+				defender["name"], defender["health"]
+			])
 
-	_update_card_from_unit("enemy", attacker_index)
-	_update_card_from_unit("player", target_index)
-	_finalize_action_visuals()
+		if not blocked and int(defender["health"]) > 0:
+			await _apply_attack_on_hit_status(attacker, defender, "player", target_index)
 
-	if int(defender["health"]) <= 0:
-		await _handle_unit_death("player", target_index)
+		if int(defender["health"]) > 0:
+			await _apply_thorns_damage("player", target_index, "enemy", attacker_index)
+
+		_update_card_from_unit("enemy", attacker_index)
+		_update_card_from_unit("player", target_index)
+		_finalize_action_visuals()
+
+		if int(defender["health"]) <= 0:
+			await _handle_unit_death("player", target_index)
+			if _check_for_battle_end():
+				return
+			break
+
+		if swing < swings - 1:
+			await get_tree().create_timer(0.08).timeout
 
 	if _check_for_battle_end():
 		return
@@ -3439,3 +3472,5 @@ func _apply_chill_to_unit(unit: Dictionary) -> int:
 	unit["atb"] = max(0.0, float(unit.get("atb", 0.0)) - chill_amount)
 	unit["is_ready"] = false
 	return chill_amount
+func _get_attack_swings(unit: Dictionary) -> int:
+	return 2 if _unit_has_modifier(unit, "windfury") else 1

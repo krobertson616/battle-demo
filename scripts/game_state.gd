@@ -132,10 +132,10 @@ func _make(id: String, display_name: String, tribe: String, cost: int, atk: int,
 		m.modifiers.append("taunt")
 
 	if id == "wolf":
-		m.modifiers.append("pack_hunter")
+		m.modifiers.append("windfury")
 
 	if id == "alpha_wolf":
-		m.modifiers.append("pack_hunter")
+		m.modifiers.append("windfury")
 
 	if id == "imp":
 		m.modifiers.append("burn")

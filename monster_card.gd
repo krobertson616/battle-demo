@@ -476,6 +476,16 @@ a Taunt unit if able."""
 				chill_chip.tooltip_border_color = Color(0.78, 0.92, 1.0, 1.0)
 				chill_chip.tooltip_text_color = Color(1, 1, 1, 1)
 				upgrade_chips.add_child(chill_chip)
+			"windfury":
+				var windfury_chip = ability_chip_scene.instantiate()
+				windfury_chip.label_text = "💨 WINDFURY"
+				windfury_chip.tooltip_text_custom = """Attacks twice
+			when it attacks."""
+				windfury_chip.chip_bg_color = Color(0.36, 0.60, 0.82, 1.0)
+				windfury_chip.tooltip_bg_color = Color(0.42, 0.70, 0.92, 1.0)
+				windfury_chip.tooltip_border_color = Color(0.82, 0.94, 1.0, 1.0)
+				windfury_chip.tooltip_text_color = Color(1, 1, 1, 1)
+				upgrade_chips.add_child(windfury_chip)
 			"heal":
 				var heal_chip = ability_chip_scene.instantiate()
 				heal_chip.label_text = "✨ HEAL"
