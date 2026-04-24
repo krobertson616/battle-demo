@@ -26,8 +26,6 @@ func _get_drag_data(_at_position: Vector2):
 		preview_card.setup(_monster_data, "", -1)
 	if preview_card.has_method("set_combat_mode"):
 		preview_card.set_combat_mode(_combat_mode)
-	if preview_card.has_method("_apply_data"):
-		preview_card.call("_apply_data")
 
 	set_drag_preview(preview_root)
 
