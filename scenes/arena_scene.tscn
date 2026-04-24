@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://07y7kpfxcwto"]
+[gd_scene load_steps=8 format=3 uid="uid://07y7kpfxcwto"]
 
 [ext_resource type="Script" uid="uid://dvgrxxqwig57x" path="res://scenes/arena_scene.gd" id="1_r8trg"]
 [ext_resource type="Script" path="res://scenes/volatile_conductor_layout.gd" id="2_vclayout"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scenes/arena_enemy_card_spacing.gd" id="3_spacing"]
 [ext_resource type="Script" path="res://scenes/arena_dead_card_cleanup.gd" id="3_deadcleanup"]
 [ext_resource type="Script" path="res://scenes/arena_demo_balance.gd" id="4_demobalance"]
+[ext_resource type="Script" path="res://scenes/arena_reward_xp_overlay.gd" id="5_xpoverlay"]
 
 [node name="ArenaScene" type="Control" unique_id=422312403]
 layout_mode = 3
@@ -24,6 +25,9 @@ script = ExtResource("3_spacing")
 
 [node name="ArenaDemoBalance" type="Node" parent="."]
 script = ExtResource("4_demobalance")
+
+[node name="ArenaRewardXpOverlay" type="Node" parent="."]
+script = ExtResource("5_xpoverlay")
 
 [node name="ArenaTargetingArrow" type="Control" parent="."]
 layout_mode = 1
