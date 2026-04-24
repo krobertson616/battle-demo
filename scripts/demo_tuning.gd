@@ -2,9 +2,9 @@ extends Node
 
 # Demo tuning layer used while we are playtesting the first real slice.
 # Keeps the run short/intentionally ordered and scales active run cards to a
-# larger combat number range without rewriting every monster/enemy definition yet.
+# slightly larger combat number range without rewriting every monster/enemy definition yet.
 
-const COMBAT_SCALE: int = 3
+const COMBAT_SCALE: int = 2
 const DEMO_RUN_ENCOUNTERS: Array[String] = [
 	"cave_1",
 	"cave_2",
@@ -23,6 +23,15 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	_apply_demo_tuning()
 
+func reset_demo_run_order_to_start() -> void:
+	if not is_instance_valid(GameState):
+		return
+
+	GameState.run_encounters = DEMO_RUN_ENCOUNTERS.duplicate()
+	GameState.current_encounter_index = 0
+	GameState.pending_enemy_team = []
+	GameState.pending_result = {}
+
 func _apply_demo_tuning() -> void:
 	if not is_instance_valid(GameState):
 		return
@@ -32,24 +41,27 @@ func _apply_demo_tuning() -> void:
 	_scale_live_items()
 
 func _force_demo_encounter_order() -> void:
-	if _encounter_order_matches():
+	var order_matches := _encounter_order_matches()
+
+	if not order_matches:
+		GameState.run_encounters = DEMO_RUN_ENCOUNTERS.duplicate()
+
+		# New/fresh runs should always start at Cave 1. This avoids preserving the old
+		# testing setup where the boss was first in the list.
+		if int(GameState.round_num) <= 1 or int(GameState.current_encounter_index) < 0:
+			GameState.current_encounter_index = 0
+		else:
+			GameState.current_encounter_index = clampi(
+				int(GameState.current_encounter_index),
+				0,
+				max(0, DEMO_RUN_ENCOUNTERS.size() - 1)
+			)
 		return
 
-	var old_encounter_id := ""
-	if GameState.has_method("get_current_encounter_id"):
-		old_encounter_id = GameState.get_current_encounter_id()
-
-	GameState.run_encounters = DEMO_RUN_ENCOUNTERS.duplicate()
-
-	var preserved_index := DEMO_RUN_ENCOUNTERS.find(old_encounter_id)
-	if preserved_index >= 0:
-		GameState.current_encounter_index = preserved_index
-	else:
-		GameState.current_encounter_index = clampi(
-			int(GameState.current_encounter_index),
-			0,
-			max(0, DEMO_RUN_ENCOUNTERS.size() - 1)
-		)
+	# Guard against the old test setup where a fresh run could still begin on the boss.
+	# During a normal run, round_num advances after combat, so this only resets brand-new runs.
+	if int(GameState.round_num) <= 1 and int(GameState.current_encounter_index) > 0:
+		GameState.current_encounter_index = 0
 
 func _encounter_order_matches() -> bool:
 	if GameState.run_encounters.size() != DEMO_RUN_ENCOUNTERS.size():
