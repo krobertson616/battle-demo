@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bjrdjxgm0g62j"]
 
-[ext_resource type="Script" uid="uid://bfldounv6xn51" path="res://monster_card.gd" id="1_qk6kt"]
+[ext_resource type="Script" path="res://scripts/monster_card_drag_preview_fix.gd" id="1_qk6kt"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qk6kt"]
 bg_color = Color(0.4862745, 0.3019608, 1, 1)
