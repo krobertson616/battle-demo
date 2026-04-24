@@ -70,12 +70,13 @@ func _draw() -> void:
 	if points.size() < 2:
 		return
 
+	# Draw the lock-on marker first so the arrow appears above it.
+	if has_hover_target:
+		_draw_target_anchor(end_pos)
+
 	_draw_arrow_body(points, has_hover_target)
 	_draw_arrow_head(points, has_hover_target)
 	_draw_source_anchor(start_pos)
-
-	if has_hover_target:
-		_draw_target_anchor(end_pos)
 
 func _sync_to_viewport() -> void:
 	var viewport_rect: Rect2 = get_viewport_rect()
@@ -253,15 +254,17 @@ func _draw_source_anchor(pos: Vector2) -> void:
 
 func _draw_target_anchor(pos: Vector2) -> void:
 	var pulse_radius: float = TARGET_RING_RADIUS + sin(_pulse + 1.2) * 3.0
-	draw_circle(pos, pulse_radius + 8.0, Color(1.0, 0.12, 0.06, 0.20))
+
+	# Lock-on crosshair is intentionally drawn before the arrow body/head, so it sits below the arrow.
+	draw_circle(pos, pulse_radius + 10.0, Color(1.0, 0.12, 0.06, 0.20))
+	draw_circle(pos, pulse_radius + 3.0, Color(1.0, 0.22, 0.06, 0.08))
 	draw_arc(pos, pulse_radius, 0.0, TAU, 40, Color(1.0, 0.24, 0.08, 0.95), 4.5, true)
 	draw_arc(pos, pulse_radius + 7.0, 0.0, TAU, 40, Color(1.0, 0.76, 0.28, 0.50), 2.0, true)
 
-	# Crosshair lock-on mark.
-	draw_line(pos + Vector2(-pulse_radius - 8.0, 0.0), pos + Vector2(-8.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
-	draw_line(pos + Vector2(8.0, 0.0), pos + Vector2(pulse_radius + 8.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
-	draw_line(pos + Vector2(0.0, -pulse_radius - 8.0), pos + Vector2(0.0, -8.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
-	draw_line(pos + Vector2(0.0, 8.0), pos + Vector2(0.0, pulse_radius + 8.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_line(pos + Vector2(-pulse_radius - 10.0, 0.0), pos + Vector2(-8.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_line(pos + Vector2(8.0, 0.0), pos + Vector2(pulse_radius + 10.0, 0.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_line(pos + Vector2(0.0, -pulse_radius - 10.0), pos + Vector2(0.0, -8.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
+	draw_line(pos + Vector2(0.0, 8.0), pos + Vector2(0.0, pulse_radius + 10.0), Color(1.0, 0.85, 0.35, 0.95), 3.0, true)
 	draw_circle(pos, 4.0, Color(1.0, 0.85, 0.35, 1.0))
 
 func _has_queued_enemy_targets() -> bool:
