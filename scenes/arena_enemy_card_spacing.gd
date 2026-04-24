@@ -1,13 +1,12 @@
 extends Node
 
 # Keeps enemy cards from visually overlapping in arena_scene.
-# Volatile Conductor uses a wider presentation, so his holder is wider and the
-# card is centered inside that space. This keeps the gaps on both sides even.
+# Volatile Conductor stays visually anchored in the middle while Greaselings
+# appear to his left and Firelings appear to his right.
 
 const DEFAULT_ENEMY_SEPARATION := 34
-const CONDUCTOR_ENEMY_SEPARATION := 34
 const DEFAULT_HOLDER_WIDTH := 185
-const CONDUCTOR_HOLDER_WIDTH := 245
+const CONDUCTOR_SIDE_PADDING := 30
 
 @onready var arena: Control = get_parent() as Control
 @onready var enemy_row: HBoxContainer = arena.get_node("MarginContainer/VBoxContainer/EnemyRow")
@@ -18,46 +17,55 @@ func _process(_delta: float) -> void:
 	if enemy_row == null or not is_instance_valid(enemy_row):
 		return
 
-	var has_conductor := _enemy_team_has_volatile_conductor()
-	var separation := CONDUCTOR_ENEMY_SEPARATION if has_conductor else DEFAULT_ENEMY_SEPARATION
-	enemy_row.add_theme_constant_override("separation", separation)
+	enemy_row.add_theme_constant_override("separation", DEFAULT_ENEMY_SEPARATION)
+	_apply_even_conductor_spacing()
 
-	for holder in enemy_row.get_children():
-		if not (holder is Control):
+func _apply_even_conductor_spacing() -> void:
+	var conductor_holder: Control = null
+	var conductor_card: Control = null
+	var conductor_index := -1
+
+	for i in range(enemy_row.get_child_count()):
+		var holder := enemy_row.get_child(i) as Control
+		if holder == null:
 			continue
 
-		var control := holder as Control
-		var card := _get_first_card_child(control)
+		var card := _get_first_card_child(holder)
 		if card == null:
-			control.custom_minimum_size.x = DEFAULT_HOLDER_WIDTH
+			holder.custom_minimum_size.x = DEFAULT_HOLDER_WIDTH
 			continue
 
-		var holder_width := DEFAULT_HOLDER_WIDTH
 		if _is_volatile_conductor_card(card):
-			holder_width = CONDUCTOR_HOLDER_WIDTH
+			conductor_holder = holder
+			conductor_card = card
+			conductor_index = i
+		else:
+			holder.custom_minimum_size.x = DEFAULT_HOLDER_WIDTH
+			card.position.x = 0.0
 
-		control.custom_minimum_size.x = holder_width
-		_center_card_in_holder(card, holder_width)
+	if conductor_holder == null or conductor_card == null or conductor_index == -1:
+		return
 
-func _center_card_in_holder(card: Control, holder_width: float) -> void:
-	var card_width := card.size.x
-	if card_width <= 0.0:
-		card_width = card.custom_minimum_size.x
-	if card_width <= 0.0:
-		card_width = DEFAULT_HOLDER_WIDTH
+	var left_count := conductor_index
+	var right_count := enemy_row.get_child_count() - conductor_index - 1
 
-	card.position.x = max(0.0, (holder_width - card_width) / 2.0)
+	var left_span := float(left_count) * float(DEFAULT_HOLDER_WIDTH + DEFAULT_ENEMY_SEPARATION)
+	var right_span := float(right_count) * float(DEFAULT_HOLDER_WIDTH + DEFAULT_ENEMY_SEPARATION)
+	var side_difference := abs(left_span - right_span)
 
-func _enemy_team_has_volatile_conductor() -> bool:
-	var visual_enemy_team = arena.get("visual_enemy_team")
-	if typeof(visual_enemy_team) != TYPE_ARRAY:
-		return false
+	var conductor_card_width := _get_card_width(conductor_card)
+	var conductor_holder_width := conductor_card_width + side_difference + float(CONDUCTOR_SIDE_PADDING * 2)
+	var card_x := ((conductor_holder_width + right_span - left_span - conductor_card_width) / 2.0)
 
-	for monster in visual_enemy_team:
-		if _is_volatile_conductor_data(monster):
-			return true
+	conductor_holder.custom_minimum_size.x = conductor_holder_width
+	conductor_card.position.x = max(0.0, card_x)
 
-	return false
+func _get_card_width(card: Control) -> float:
+	if card.size.x > 0.0:
+		return card.size.x
+	if card.custom_minimum_size.x > 0.0:
+		return card.custom_minimum_size.x
+	return DEFAULT_HOLDER_WIDTH
 
 func _get_first_card_child(holder: Control) -> Control:
 	for child in holder.get_children():
