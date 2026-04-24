@@ -15,17 +15,36 @@ func _ready() -> void:
 	help_label.text = "Click 3 monsters to build your starting team."
 
 	GameState.clear_starter_team()
-	var full_starter_offer: Array[MonsterData] = GameState.build_starter_offer()
-	full_starter_offer.shuffle()
-	starter_offer.clear()
-	for i in range(min(STARTER_OFFER_COUNT, full_starter_offer.size())):
-		starter_offer.append(full_starter_offer[i])
+	starter_offer = _build_random_unique_starter_offer(GameState.build_starter_offer(), STARTER_OFFER_COUNT)
 
 	start_button.disabled = true
 	start_button.pressed.connect(_on_start_pressed)
 	_render_offer()
 	offer_grid.add_theme_constant_override("h_separation", 28)
 	offer_grid.add_theme_constant_override("v_separation", 28)
+
+func _build_random_unique_starter_offer(offer_pool: Array[MonsterData], offer_count: int) -> Array[MonsterData]:
+	var unique_offer: Array[MonsterData] = []
+	var seen_ids := {}
+
+	for monster in offer_pool:
+		if monster == null:
+			continue
+
+		var id := _monster_id(monster)
+		if id == "" or seen_ids.has(id):
+			continue
+
+		seen_ids[id] = true
+		unique_offer.append(monster)
+
+	unique_offer.shuffle()
+
+	var picked_offer: Array[MonsterData] = []
+	for i in range(min(offer_count, unique_offer.size())):
+		picked_offer.append(unique_offer[i])
+
+	return picked_offer
 
 func _render_offer() -> void:
 	for child in offer_grid.get_children():
