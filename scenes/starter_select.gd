@@ -1,9 +1,11 @@
 extends Control
 
-@onready var title_label: Label = $CenterContainer/VBoxContainer/TitleLabel
-@onready var help_label: Label = $CenterContainer/VBoxContainer/HelpLabel
-@onready var offer_grid: GridContainer = $CenterContainer/VBoxContainer/OfferGrid
-@onready var start_button: Button = $CenterContainer/VBoxContainer/StartButton
+const STARTER_OFFER_COUNT := 4
+
+@onready var title_label: Label = $CenterContainer/PanelContainer/VBoxContainer/TitleLabel
+@onready var help_label: Label = $CenterContainer/PanelContainer/VBoxContainer/HelpLabel
+@onready var offer_grid: GridContainer = $CenterContainer/PanelContainer/VBoxContainer/OfferGrid
+@onready var start_button: Button = $CenterContainer/PanelContainer/VBoxContainer/StartButton
 
 var monster_card_scene = preload("res://scenes/monster_card.tscn")
 var starter_offer: Array[MonsterData] = []
@@ -13,7 +15,11 @@ func _ready() -> void:
 	help_label.text = "Click 3 monsters to build your starting team."
 
 	GameState.clear_starter_team()
-	starter_offer = GameState.build_starter_offer()
+	var full_starter_offer: Array[MonsterData] = GameState.build_starter_offer()
+	full_starter_offer.shuffle()
+	starter_offer.clear()
+	for i in range(min(STARTER_OFFER_COUNT, full_starter_offer.size())):
+		starter_offer.append(full_starter_offer[i])
 
 	start_button.disabled = true
 	start_button.pressed.connect(_on_start_pressed)
