@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://07y7kpfxcwto"]
+[gd_scene load_steps=5 format=3 uid="uid://07y7kpfxcwto"]
 
 [ext_resource type="Script" uid="uid://dvgrxxqwig57x" path="res://scenes/arena_scene.gd" id="1_r8trg"]
 [ext_resource type="Script" path="res://scenes/volatile_conductor_layout.gd" id="2_vclayout"]
+[ext_resource type="Script" path="res://scenes/arena_enemy_card_spacing.gd" id="3_spacing"]
 [ext_resource type="Script" path="res://scenes/arena_dead_card_cleanup.gd" id="3_deadcleanup"]
 
 [node name="ArenaScene" type="Control" unique_id=422312403]
@@ -15,6 +16,9 @@ script = ExtResource("1_r8trg")
 
 [node name="VolatileConductorLayout" type="Node" parent="."]
 script = ExtResource("2_vclayout")
+
+[node name="ArenaEnemyCardSpacing" type="Node" parent="."]
+script = ExtResource("3_spacing")
 
 [node name="ArenaDeadCardCleanup" type="Node" parent="."]
 script = ExtResource("3_deadcleanup")
