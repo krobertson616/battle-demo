@@ -21,13 +21,18 @@ var _pulse: float = 0.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	z_index = 5000
+	z_index = 9000
+	z_as_relative = false
+	top_level = true
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sync_to_viewport()
 	set_process(true)
 
 func _process(delta: float) -> void:
 	_pulse += delta * 4.0
-	_hide_old_line()
+	_sync_to_viewport()
+	_hide_and_clear_old_line()
+	visible = arena != null and is_instance_valid(arena) and bool(arena.get("drag_assigning"))
 	queue_redraw()
 
 func _draw() -> void:
@@ -43,13 +48,13 @@ func _draw() -> void:
 
 	var start_pos: Vector2 = _get_player_arrow_start(start_index)
 	if start_pos == Vector2.INF:
-		return
+		start_pos = _get_mouse_arrow_end()
 
 	var hover_enemy_index: int = int(arena.get("drag_hover_enemy_index"))
 	var has_hover_target: bool = hover_enemy_index >= 0
 	var end_pos: Vector2 = _get_enemy_arrow_end(hover_enemy_index) if has_hover_target else _get_mouse_arrow_end()
 
-	if end_pos == Vector2.INF:
+	if end_pos == Vector2.INF or start_pos == Vector2.INF:
 		return
 
 	var points: PackedVector2Array = _build_curve_points(start_pos, end_pos)
@@ -63,13 +68,25 @@ func _draw() -> void:
 	if has_hover_target:
 		_draw_target_anchor(end_pos)
 
-func _hide_old_line() -> void:
+func _sync_to_viewport() -> void:
+	var viewport_rect: Rect2 = get_viewport_rect()
+	global_position = viewport_rect.position
+	size = viewport_rect.size
+	custom_minimum_size = viewport_rect.size
+
+func _hide_and_clear_old_line() -> void:
 	if arena == null or not is_instance_valid(arena):
 		return
 
 	var old_line = arena.get("drag_line")
 	if old_line != null and is_instance_valid(old_line):
 		old_line.visible = false
+		if old_line.has_method("clear_points"):
+			old_line.clear_points()
+
+	var old_layer = arena.get("line_layer")
+	if old_layer != null and is_instance_valid(old_layer):
+		old_layer.visible = false
 
 func _get_player_arrow_start(index: int) -> Vector2:
 	var card: Control = _get_card_in_row(player_row, index)
@@ -118,7 +135,7 @@ func _get_card_in_row(row: HBoxContainer, index: int) -> Control:
 func _build_curve_points(start_pos: Vector2, end_pos: Vector2) -> PackedVector2Array:
 	var points := PackedVector2Array()
 	var mid: Vector2 = start_pos.lerp(end_pos, 0.5)
-	var vertical_distance: float = abs(start_pos.y - end_pos.y)
+	var vertical_distance: float = absf(start_pos.y - end_pos.y)
 	var curve_lift: float = clampf(vertical_distance * 0.28 + 70.0, 70.0, 180.0)
 	var side_pull: float = clampf((end_pos.x - start_pos.x) * 0.12, -60.0, 60.0)
 	var control: Vector2 = mid + Vector2(side_pull, -curve_lift)
@@ -135,16 +152,16 @@ func _quadratic_bezier(a: Vector2, b: Vector2, c: Vector2, t: float) -> Vector2:
 	return ab.lerp(bc, t)
 
 func _draw_arrow_body(points: PackedVector2Array, has_hover_target: bool) -> void:
-	var glow_alpha: float = 0.64 if has_hover_target else 0.46
-	var core_alpha: float = 1.0 if has_hover_target else 0.86
+	var glow_alpha: float = 0.72 if has_hover_target else 0.56
+	var core_alpha: float = 1.0 if has_hover_target else 0.92
 
-	# dark readable outline
-	draw_polyline(points, Color(0.08, 0.0, 0.0, 0.72), OUTER_WIDTH, true)
+	# Dark readable outline.
+	draw_polyline(points, Color(0.08, 0.0, 0.0, 0.82), OUTER_WIDTH, true)
 
-	# warm magical body
+	# Warm magical body.
 	draw_polyline(points, Color(1.0, 0.22, 0.08, glow_alpha), GLOW_WIDTH, true)
 
-	# bright inner highlight, with a tiny pulse
+	# Bright inner highlight, with a tiny pulse.
 	var pulse_width: float = CORE_WIDTH + sin(_pulse) * 1.1
 	draw_polyline(points, Color(1.0, 0.76, 0.28, core_alpha), pulse_width, true)
 
@@ -166,10 +183,10 @@ func _draw_arrow_head(points: PackedVector2Array, has_hover_target: bool) -> voi
 
 	draw_polygon(
 		PackedVector2Array([outline_tip, outline_left, outline_right]),
-		[Color(0.08, 0.0, 0.0, 0.78)]
+		[Color(0.08, 0.0, 0.0, 0.86)]
 	)
 
-	var main_color: Color = Color(1.0, 0.28, 0.08, 0.96) if has_hover_target else Color(0.95, 0.18, 0.08, 0.86)
+	var main_color: Color = Color(1.0, 0.28, 0.08, 1.0) if has_hover_target else Color(0.95, 0.18, 0.08, 0.94)
 	draw_polygon(PackedVector2Array([tip, left, right]), [main_color])
 
 	var inner_left: Vector2 = back + normal * (ARROW_WIDTH * 0.38)
@@ -177,17 +194,17 @@ func _draw_arrow_head(points: PackedVector2Array, has_hover_target: bool) -> voi
 	var inner_tip: Vector2 = tip - dir * 5.0
 	draw_polygon(
 		PackedVector2Array([inner_tip, inner_left, inner_right]),
-		[Color(1.0, 0.83, 0.35, 0.9)]
+		[Color(1.0, 0.83, 0.35, 0.95)]
 	)
 
 func _draw_source_anchor(pos: Vector2) -> void:
 	var pulse_radius: float = SOURCE_RING_RADIUS + sin(_pulse) * 2.0
-	draw_circle(pos, pulse_radius + 5.0, Color(1.0, 0.22, 0.08, 0.12))
-	draw_arc(pos, pulse_radius, 0.0, TAU, 36, Color(1.0, 0.66, 0.22, 0.96), 4.0, true)
-	draw_circle(pos, 5.5, Color(1.0, 0.82, 0.3, 0.95))
+	draw_circle(pos, pulse_radius + 5.0, Color(1.0, 0.22, 0.08, 0.16))
+	draw_arc(pos, pulse_radius, 0.0, TAU, 36, Color(1.0, 0.66, 0.22, 1.0), 4.0, true)
+	draw_circle(pos, 5.5, Color(1.0, 0.82, 0.3, 1.0))
 
 func _draw_target_anchor(pos: Vector2) -> void:
 	var pulse_radius: float = TARGET_RING_RADIUS + sin(_pulse + 1.2) * 3.0
-	draw_circle(pos, pulse_radius + 8.0, Color(1.0, 0.12, 0.06, 0.16))
-	draw_arc(pos, pulse_radius, 0.0, TAU, 40, Color(1.0, 0.24, 0.08, 0.88), 4.5, true)
-	draw_arc(pos, pulse_radius + 7.0, 0.0, TAU, 40, Color(1.0, 0.76, 0.28, 0.42), 2.0, true)
+	draw_circle(pos, pulse_radius + 8.0, Color(1.0, 0.12, 0.06, 0.20))
+	draw_arc(pos, pulse_radius, 0.0, TAU, 40, Color(1.0, 0.24, 0.08, 0.95), 4.5, true)
+	draw_arc(pos, pulse_radius + 7.0, 0.0, TAU, 40, Color(1.0, 0.76, 0.28, 0.50), 2.0, true)
