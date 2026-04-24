@@ -2,9 +2,9 @@ extends Node
 
 # Arena-side demo scaler.
 # This catches enemy dictionaries and any boss summons that are created during
-# combat so the whole fight uses the same x3 number scale.
+# combat so the whole fight uses the same x2 number scale.
 
-const COMBAT_SCALE: int = 3
+const COMBAT_SCALE: int = 2
 
 @onready var arena: Control = get_parent() as Control
 
