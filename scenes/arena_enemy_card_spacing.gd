@@ -4,9 +4,9 @@ extends Node
 # Volatile Conductor stays visually anchored in the middle while Greaselings
 # appear to his left and Firelings appear to his right.
 
-const DEFAULT_ENEMY_SEPARATION := 34
-const DEFAULT_HOLDER_WIDTH := 185
-const CONDUCTOR_SIDE_PADDING := 30
+const DEFAULT_ENEMY_SEPARATION: int = 34
+const DEFAULT_HOLDER_WIDTH: float = 185.0
+const CONDUCTOR_SIDE_PADDING: float = 30.0
 
 @onready var arena: Control = get_parent() as Control
 @onready var enemy_row: HBoxContainer = arena.get_node("MarginContainer/VBoxContainer/EnemyRow")
@@ -23,14 +23,14 @@ func _process(_delta: float) -> void:
 func _apply_even_conductor_spacing() -> void:
 	var conductor_holder: Control = null
 	var conductor_card: Control = null
-	var conductor_index := -1
+	var conductor_index: int = -1
 
 	for i in range(enemy_row.get_child_count()):
-		var holder := enemy_row.get_child(i) as Control
+		var holder: Control = enemy_row.get_child(i) as Control
 		if holder == null:
 			continue
 
-		var card := _get_first_card_child(holder)
+		var card: Control = _get_first_card_child(holder)
 		if card == null:
 			holder.custom_minimum_size.x = DEFAULT_HOLDER_WIDTH
 			continue
@@ -46,19 +46,20 @@ func _apply_even_conductor_spacing() -> void:
 	if conductor_holder == null or conductor_card == null or conductor_index == -1:
 		return
 
-	var left_count := conductor_index
-	var right_count := enemy_row.get_child_count() - conductor_index - 1
+	var left_count: int = conductor_index
+	var right_count: int = enemy_row.get_child_count() - conductor_index - 1
 
-	var left_span := float(left_count) * float(DEFAULT_HOLDER_WIDTH + DEFAULT_ENEMY_SEPARATION)
-	var right_span := float(right_count) * float(DEFAULT_HOLDER_WIDTH + DEFAULT_ENEMY_SEPARATION)
-	var side_difference := abs(left_span - right_span)
+	var slot_span: float = DEFAULT_HOLDER_WIDTH + float(DEFAULT_ENEMY_SEPARATION)
+	var left_span: float = float(left_count) * slot_span
+	var right_span: float = float(right_count) * slot_span
+	var side_difference: float = absf(left_span - right_span)
 
-	var conductor_card_width := _get_card_width(conductor_card)
-	var conductor_holder_width := conductor_card_width + side_difference + float(CONDUCTOR_SIDE_PADDING * 2)
-	var card_x := ((conductor_holder_width + right_span - left_span - conductor_card_width) / 2.0)
+	var conductor_card_width: float = _get_card_width(conductor_card)
+	var conductor_holder_width: float = conductor_card_width + side_difference + (CONDUCTOR_SIDE_PADDING * 2.0)
+	var card_x: float = (conductor_holder_width + right_span - left_span - conductor_card_width) / 2.0
 
 	conductor_holder.custom_minimum_size.x = conductor_holder_width
-	conductor_card.position.x = max(0.0, card_x)
+	conductor_card.position.x = maxf(0.0, card_x)
 
 func _get_card_width(card: Control) -> float:
 	if card.size.x > 0.0:
@@ -82,12 +83,12 @@ func _is_volatile_conductor_data(data) -> bool:
 		return false
 
 	if data is Dictionary:
-		var id := str(data.get("id", ""))
-		var display_name := str(data.get("display_name", data.get("name", ""))).to_lower()
+		var id: String = str(data.get("id", ""))
+		var display_name: String = str(data.get("display_name", data.get("name", ""))).to_lower()
 		return id == "volatile_conductor" or display_name.contains("volatile conductor")
 
 	var id_value = data.get("id")
 	var name_value = data.get("display_name")
-	var id := "" if id_value == null else str(id_value)
-	var display_name := "" if name_value == null else str(name_value).to_lower()
+	var id: String = "" if id_value == null else str(id_value)
+	var display_name: String = "" if name_value == null else str(name_value).to_lower()
 	return id == "volatile_conductor" or display_name.contains("volatile conductor")
