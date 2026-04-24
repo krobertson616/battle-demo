@@ -62,11 +62,7 @@ func _refresh_xp_badges() -> void:
 	if xp_gain_label != null:
 		xp_gain_label.visible = false
 
-	var survivors: Array = []
-	if Engine.has_singleton("GameState"):
-		survivors = GameState.pending_result.get("player_survivors", [])
-	elif "pending_result" in GameState:
-		survivors = GameState.pending_result.get("player_survivors", [])
+	var survivors: Array = GameState.pending_result.get("player_survivors", [])
 
 	for i in range(card_count):
 		var row_child := survivor_cards_row.get_child(i)
