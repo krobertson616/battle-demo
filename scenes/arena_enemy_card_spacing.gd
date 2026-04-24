@@ -1,13 +1,13 @@
 extends Node
 
 # Keeps enemy cards from visually overlapping in arena_scene.
-# Volatile Conductor uses a larger card/name presentation, so the enemy row needs
-# more spacing when he is present.
+# Volatile Conductor uses a wider presentation, so his holder is wider and the
+# card is centered inside that space. This keeps the gaps on both sides even.
 
-const DEFAULT_ENEMY_SEPARATION := 18
-const CONDUCTOR_ENEMY_SEPARATION := 46
+const DEFAULT_ENEMY_SEPARATION := 34
+const CONDUCTOR_ENEMY_SEPARATION := 34
 const DEFAULT_HOLDER_WIDTH := 185
-const CONDUCTOR_HOLDER_WIDTH := 230
+const CONDUCTOR_HOLDER_WIDTH := 245
 
 @onready var arena: Control = get_parent() as Control
 @onready var enemy_row: HBoxContainer = arena.get_node("MarginContainer/VBoxContainer/EnemyRow")
@@ -28,10 +28,25 @@ func _process(_delta: float) -> void:
 
 		var control := holder as Control
 		var card := _get_first_card_child(control)
-		if card != null and _is_volatile_conductor_card(card):
-			control.custom_minimum_size.x = CONDUCTOR_HOLDER_WIDTH
-		else:
+		if card == null:
 			control.custom_minimum_size.x = DEFAULT_HOLDER_WIDTH
+			continue
+
+		var holder_width := DEFAULT_HOLDER_WIDTH
+		if _is_volatile_conductor_card(card):
+			holder_width = CONDUCTOR_HOLDER_WIDTH
+
+		control.custom_minimum_size.x = holder_width
+		_center_card_in_holder(card, holder_width)
+
+func _center_card_in_holder(card: Control, holder_width: float) -> void:
+	var card_width := card.size.x
+	if card_width <= 0.0:
+		card_width = card.custom_minimum_size.x
+	if card_width <= 0.0:
+		card_width = DEFAULT_HOLDER_WIDTH
+
+	card.position.x = max(0.0, (holder_width - card_width) / 2.0)
 
 func _enemy_team_has_volatile_conductor() -> bool:
 	var visual_enemy_team = arena.get("visual_enemy_team")
